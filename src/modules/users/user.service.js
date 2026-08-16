@@ -20,3 +20,15 @@ export const getUserById = async (id) => {
     },
   });
 };
+
+export const updateUser = async (id, { name, email }) => {
+  return await prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      name,
+      email,
+    },
+  });
+};
