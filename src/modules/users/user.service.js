@@ -49,3 +49,19 @@ export const deleteUser = async (id) => {
     },
   });
 };
+
+export const queryUsers = async ({ name, email }) => {
+  const where = {};
+
+  if (name !== undefined) {
+    where.name = name;
+  }
+
+  if (email !== undefined) {
+    where.email = email;
+  }
+
+  return await prisma.user.findMany({
+    where,
+  });
+};

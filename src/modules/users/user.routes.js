@@ -5,7 +5,8 @@ import {
     getUserByIdController, 
     updateUserController,
     patchUserController,
-    deleteUserController 
+    deleteUserController,
+    queryUsersController 
 } from './user.controller.js';
 
 const router = Router();
@@ -16,6 +17,6 @@ router.get('/:id', getUserByIdController);
 router.put('/:id', updateUserController);
 router.patch('/:id', patchUserController);
 router.delete('/:id', deleteUserController);
-
+router.query('/', queryUsersController);
 
 export default router;

@@ -4,7 +4,8 @@ import {
   getUserById, 
   updateUser, 
   patchUser,
-  deleteUser 
+  deleteUser,
+  queryUsers 
 } from './user.service.js';
 
 export const createUserController = async (req, res) => {
@@ -158,6 +159,31 @@ export const deleteUserController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error deleting user',
+    });
+  }
+};
+
+export const queryUsersController = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (name === undefined && email === undefined) {
+      return res.status(400).json({
+        message: 'QUERY requires at least one query criterion',
+      });
+    }
+
+    const users = await queryUsers({
+      name,
+      email,
+    });
+
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error querying users',
     });
   }
 };
