@@ -1,4 +1,11 @@
-import { createUser, getUsers, getUserById, updateUser, patchUser } from './user.service.js';
+import { 
+  createUser, 
+  getUsers, 
+  getUserById, 
+  updateUser, 
+  patchUser,
+  deleteUser 
+} from './user.service.js';
 
 export const createUserController = async (req, res) => {
   try {
@@ -127,6 +134,30 @@ export const patchUserController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error updating user',
+    });
+  }
+};
+
+export const deleteUserController = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const existingUser = await getUserById(id);
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    await deleteUser(id);
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error deleting user',
     });
   }
 };
