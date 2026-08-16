@@ -1,5 +1,6 @@
 import {
-  createBook
+  createBook,
+  getBooks
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -43,6 +44,20 @@ export const createBookController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error creating book',
+    });
+  }
+};
+
+export const getBooksController = async (req, res) => {
+  try {
+    const books = await getBooks();
+
+    return res.status(200).json(books);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting books',
     });
   }
 };

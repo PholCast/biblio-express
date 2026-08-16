@@ -15,3 +15,7 @@ export const createBook = async ({
     },
   });
 };
+
+export const getBooks = async () => {
+  return await prisma.book.findMany();
+};
