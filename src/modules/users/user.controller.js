@@ -1,4 +1,4 @@
-import { createUser } from './user.service.js';
+import { createUser, getUsers } from './user.service.js';
 
 export const createUserController = async (req, res) => {
   try {
@@ -15,6 +15,20 @@ export const createUserController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error creating user',
+    });
+  }
+};
+
+export const getUsersController = async (req, res) => {
+  try {
+    const users = await getUsers();
+
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting users',
     });
   }
 };
