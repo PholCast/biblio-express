@@ -12,3 +12,11 @@ export const createUser = async ({ name, email }) => {
 export const getUsers = async () => {
   return await prisma.user.findMany();
 };
+
+export const getUserById = async (id) => {
+  return await prisma.user.findUnique({
+    where: {
+      id,
+    },
+  });
+};
