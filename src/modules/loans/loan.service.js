@@ -60,6 +60,15 @@ export const updateLoan = async (
   });
 };
 
+export const patchLoan = async (id, data) => {
+  return await prisma.loan.update({
+    where: {
+      id,
+    },
+    data,
+  });
+};
+
 export const userExists = async (userId) => {
   const user = await getUserById(userId);
 
