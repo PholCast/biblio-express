@@ -69,6 +69,14 @@ export const patchLoan = async (id, data) => {
   });
 };
 
+export const deleteLoan = async (id) => {
+  return await prisma.loan.delete({
+    where: {
+      id,
+    },
+  });
+};
+
 export const userExists = async (userId) => {
   const user = await getUserById(userId);
 

@@ -4,6 +4,7 @@ import {
   getLoanById,
   updateLoan,
   patchLoan,
+  deleteLoan,
   userExists,
   bookExists,
   bookHasActiveLoan
@@ -379,6 +380,36 @@ export const patchLoanController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error updating loan',
+    });
+  }
+};
+
+export const deleteLoanController = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    const existingLoan = await getLoanById(id);
+
+    if (!existingLoan) {
+      return res.status(404).json({
+        message: 'Loan not found',
+      });
+    }
+
+    await deleteLoan(id);
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error deleting loan',
     });
   }
 };
