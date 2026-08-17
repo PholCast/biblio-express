@@ -36,6 +36,30 @@ export const getLoanById = async (id) => {
   });
 };
 
+export const updateLoan = async (
+  id,
+  {
+    userId,
+    bookId,
+    borrowedAt,
+    dueDate,
+    returnedAt,
+  },
+) => {
+  return await prisma.loan.update({
+    where: {
+      id,
+    },
+    data: {
+      userId,
+      bookId,
+      borrowedAt,
+      dueDate,
+      returnedAt,
+    },
+  });
+};
+
 export const userExists = async (userId) => {
   const user = await getUserById(userId);
 
