@@ -19,3 +19,11 @@ export const createBook = async ({
 export const getBooks = async () => {
   return await prisma.book.findMany();
 };
+
+export const getBookById = async (id) => {
+  return await prisma.book.findUnique({
+    where: {
+      id,
+    },
+  });
+};

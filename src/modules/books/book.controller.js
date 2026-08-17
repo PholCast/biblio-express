@@ -1,6 +1,7 @@
 import {
   createBook,
-  getBooks
+  getBooks,
+  getBookById
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -58,6 +59,34 @@ export const getBooksController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error getting books',
+    });
+  }
+};
+
+export const getBookByIdController = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    const book = await getBookById(id);
+
+    if (!book) {
+      return res.status(404).json({
+        message: 'Book not found',
+      });
+    }
+
+    return res.status(200).json(book);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting book',
     });
   }
 };
