@@ -3,7 +3,8 @@ import {
   getBooks,
   getBookById,
   updateBook,
-  patchBook
+  patchBook,
+  deleteBook
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -224,6 +225,36 @@ export const patchBookController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error updating book',
+    });
+  }
+};
+
+export const deleteBookController = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    const existingBook = await getBookById(id);
+
+    if (!existingBook) {
+      return res.status(404).json({
+        message: 'Book not found',
+      });
+    }
+
+    await deleteBook(id);
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error deleting book',
     });
   }
 };

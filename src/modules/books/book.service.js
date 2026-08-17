@@ -58,3 +58,11 @@ export const patchBook = async (id, data) => {
     data,
   });
 };
+
+export const deleteBook = async (id) => {
+  return await prisma.book.delete({
+    where: {
+      id,
+    },
+  });
+};
