@@ -20,6 +20,10 @@ export const createLoan = async ({
   });
 };
 
+export const getLoans = async () => {
+  return await prisma.loan.findMany();
+};
+
 
 export const userExists = async (userId) => {
   const user = await getUserById(userId);

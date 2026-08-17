@@ -1,5 +1,6 @@
 import {
   createLoan,
+  getLoans,
   userExists,
   bookExists
 } from './loan.service.js';
@@ -93,6 +94,20 @@ export const createLoanController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error creating loan',
+    });
+  }
+};
+
+export const getLoansController = async (req, res) => {
+  try {
+    const loans = await getLoans();
+
+    return res.status(200).json(loans);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting loans',
     });
   }
 };
