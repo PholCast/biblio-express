@@ -5,7 +5,8 @@ import {
   getBookByIdController,
   updateBookController,
   patchBookController,
-  deleteBookController
+  deleteBookController,
+  queryBooksController
 } from './book.controller.js';
 
 const router = Router();
@@ -16,5 +17,6 @@ router.get('/:id', getBookByIdController);
 router.put('/:id', updateBookController);
 router.patch('/:id', patchBookController);
 router.delete('/:id', deleteBookController);
+router.query('/', queryBooksController);
 
 export default router;

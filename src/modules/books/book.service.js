@@ -66,3 +66,37 @@ export const deleteBook = async (id) => {
     },
   });
 };
+
+export const queryBooks = async ({
+  id,
+  title,
+  author,
+  isbn,
+  publishedAt,
+}) => {
+  const where = {};
+
+  if (id !== undefined) {
+    where.id = id;
+  }
+
+  if (title !== undefined) {
+    where.title = title;
+  }
+
+  if (author !== undefined) {
+    where.author = author;
+  }
+
+  if (isbn !== undefined) {
+    where.isbn = isbn;
+  }
+
+  if (publishedAt !== undefined) {
+    where.publishedAt = publishedAt;
+  }
+
+  return await prisma.book.findMany({
+    where,
+  });
+};

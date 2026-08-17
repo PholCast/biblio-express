@@ -4,7 +4,8 @@ import {
   getBookById,
   updateBook,
   patchBook,
-  deleteBook
+  deleteBook,
+  queryBooks
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -255,6 +256,85 @@ export const deleteBookController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error deleting book',
+    });
+  }
+};
+
+export const queryBooksController = async (req, res) => {
+  try {
+    const {
+      id,
+      title,
+      author,
+      isbn,
+      publishedAt,
+    } = req.body;
+
+    if (
+      id === undefined &&
+      title === undefined &&
+      author === undefined &&
+      isbn === undefined &&
+      publishedAt === undefined
+    ) {
+      return res.status(400).json({
+        message: 'QUERY requires at least one query criterion',
+      });
+    }
+
+    if (
+      id !== undefined &&
+      (!Number.isInteger(id) || id <= 0)
+    ) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    if (title !== undefined && typeof title !== 'string') {
+      return res.status(400).json({
+        message: 'title must be a string',
+      });
+    }
+
+    if (author !== undefined && typeof author !== 'string') {
+      return res.status(400).json({
+        message: 'author must be a string',
+      });
+    }
+
+    if (isbn !== undefined && typeof isbn !== 'string') {
+      return res.status(400).json({
+        message: 'isbn must be a string',
+      });
+    }
+
+    let date;
+
+    if (publishedAt !== undefined) {
+      date = new Date(publishedAt);
+
+      if (Number.isNaN(date.getTime())) {
+        return res.status(400).json({
+          message: 'publishedAt must be a valid date',
+        });
+      }
+    }
+
+    const books = await queryBooks({
+      id,
+      title,
+      author,
+      isbn,
+      publishedAt: date,
+    });
+
+    return res.status(200).json(books);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error querying books',
     });
   }
 };
