@@ -5,7 +5,8 @@ import {
   updateUser, 
   patchUser,
   deleteUser,
-  queryUsers 
+  queryUsers,
+  userHasLoans 
 } from './user.service.js';
 
 export const createUserController = async (req, res) => {
@@ -143,11 +144,23 @@ export const deleteUserController = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
     const existingUser = await getUserById(id);
 
     if (!existingUser) {
       return res.status(404).json({
         message: 'User not found',
+      });
+    }
+
+    if (await userHasLoans(id)) {
+      return res.status(409).json({
+        message: 'User cannot be deleted because they have associated loans',
       });
     }
 

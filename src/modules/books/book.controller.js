@@ -5,7 +5,8 @@ import {
   updateBook,
   patchBook,
   deleteBook,
-  queryBooks
+  queryBooks,
+  bookHasLoans
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -245,6 +246,12 @@ export const deleteBookController = async (req, res) => {
     if (!existingBook) {
       return res.status(404).json({
         message: 'Book not found',
+      });
+    }
+
+    if (await bookHasLoans(id)) {
+      return res.status(409).json({
+        message: 'Book cannot be deleted because it has associated loans',
       });
     }
 

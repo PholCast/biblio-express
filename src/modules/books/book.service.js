@@ -100,3 +100,13 @@ export const queryBooks = async ({
     where,
   });
 };
+
+export const bookHasLoans = async (bookId) => {
+  const loan = await prisma.loan.findFirst({
+    where: {
+      bookId,
+    },
+  });
+
+  return loan !== null;
+};

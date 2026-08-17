@@ -65,3 +65,13 @@ export const queryUsers = async ({ name, email }) => {
     where,
   });
 };
+
+export const userHasLoans = async (userId) => {
+  const loan = await prisma.loan.findFirst({
+    where: {
+      userId,
+    },
+  });
+
+  return loan !== null;
+};
