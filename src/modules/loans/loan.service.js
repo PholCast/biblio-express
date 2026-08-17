@@ -36,3 +36,14 @@ export const bookExists = async (bookId) => {
 
   return book !== null;
 }
+
+export const bookHasActiveLoan = async (bookId) => {
+  const loan = await prisma.loan.findFirst({
+    where: {
+      bookId,
+      returnedAt: null,
+    },
+  });
+
+  return loan !== null;
+};

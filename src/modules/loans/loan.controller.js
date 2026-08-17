@@ -2,7 +2,8 @@ import {
   createLoan,
   getLoans,
   userExists,
-  bookExists
+  bookExists,
+  bookHasActiveLoan
 } from './loan.service.js';
 
 export const createLoanController = async (req, res) => {
@@ -47,6 +48,12 @@ export const createLoanController = async (req, res) => {
       return res.status(404).json({
         message: 'Book not found',
       });
+    }
+
+    if (await bookHasActiveLoan(bookId)) {
+    return res.status(409).json({
+        message: 'Book is already on loan',
+    });
     }
 
     const borrowedDate =
