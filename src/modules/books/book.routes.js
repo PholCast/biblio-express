@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import {
   createBookController,
   getBooksController,
@@ -6,17 +7,61 @@ import {
   updateBookController,
   patchBookController,
   deleteBookController,
-  queryBooksController
+  queryBooksController,
 } from './book.controller.js';
+
+import {
+  createBookSchema,
+  getBookByIdSchema,
+  updateBookSchema,
+  patchBookSchema,
+  deleteBookSchema,
+  queryBookSchema,
+} from './book.schema.js';
+
+import { validate } from '../../middlewares/validate.js';
 
 const router = Router();
 
-router.post('/', createBookController);
-router.get('/', getBooksController);
-router.get('/:id', getBookByIdController);
-router.put('/:id', updateBookController);
-router.patch('/:id', patchBookController);
-router.delete('/:id', deleteBookController);
-router.query('/', queryBooksController);
+router.post(
+  '/',
+  validate(createBookSchema),
+  createBookController
+);
+
+router.get(
+  '/',
+  getBooksController
+);
+
+router.get(
+  '/:id',
+  validate(getBookByIdSchema),
+  getBookByIdController
+);
+
+router.put(
+  '/:id',
+  validate(updateBookSchema),
+  updateBookController
+);
+
+router.patch(
+  '/:id',
+  validate(patchBookSchema),
+  patchBookController
+);
+
+router.delete(
+  '/:id',
+  validate(deleteBookSchema),
+  deleteBookController
+);
+
+router.query(
+  '/',
+  validate(queryBookSchema),
+  queryBooksController
+);
 
 export default router;

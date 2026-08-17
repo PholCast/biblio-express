@@ -44,7 +44,7 @@ export const getUsersController = async (req, res) => {
 
 export const getUserByIdController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const { id } = req.params;
 
     const user = await getUserById(id);
 
@@ -66,14 +66,8 @@ export const getUserByIdController = async (req, res) => {
 
 export const updateUserController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const { id } = req.params;
     const { name, email } = req.body;
-
-    if (name === undefined || email === undefined) {
-      return res.status(400).json({
-        message: 'PUT requires name and email',
-      });
-    }
 
     const existingUser = await getUserById(id);
 
@@ -101,14 +95,7 @@ export const updateUserController = async (req, res) => {
 
 export const patchUserController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { name, email } = req.body;
-
-    if (name === undefined && email === undefined) {
-      return res.status(400).json({
-        message: 'PATCH requires at least one field to update',
-      });
-    }
+    const { id } = req.params;
 
     const existingUser = await getUserById(id);
 
@@ -118,17 +105,7 @@ export const patchUserController = async (req, res) => {
       });
     }
 
-    const data = {};
-
-    if (name !== undefined) {
-      data.name = name;
-    }
-
-    if (email !== undefined) {
-      data.email = email;
-    }
-
-    const user = await patchUser(id, data);
+    const user = await patchUser(id, req.body);
 
     return res.status(200).json(user);
   } catch (error) {
@@ -142,13 +119,7 @@ export const patchUserController = async (req, res) => {
 
 export const deleteUserController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
+    const { id } = req.params;
 
     const existingUser = await getUserById(id);
 
@@ -178,17 +149,18 @@ export const deleteUserController = async (req, res) => {
 
 export const queryUsersController = async (req, res) => {
   try {
-    const { name, email } = req.body;
-
-    if (name === undefined && email === undefined) {
-      return res.status(400).json({
-        message: 'QUERY requires at least one query criterion',
-      });
-    }
-
-    const users = await queryUsers({
+    const {
+      id,
       name,
       email,
+      createdAt,
+    } = req.body;
+
+    const users = await queryUsers({
+      id,
+      name,
+      email,
+      createdAt,
     });
 
     return res.status(200).json(users);

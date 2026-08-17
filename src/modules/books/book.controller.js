@@ -18,30 +18,11 @@ export const createBookController = async (req, res) => {
       publishedAt,
     } = req.body;
 
-    if (
-      title === undefined ||
-      author === undefined ||
-      isbn === undefined ||
-      publishedAt === undefined
-    ) {
-      return res.status(400).json({
-        message: 'title, author, isbn and publishedAt are required',
-      });
-    }
-
-    const date = new Date(publishedAt);
-
-    if (Number.isNaN(date.getTime())) {
-      return res.status(400).json({
-        message: 'publishedAt must be a valid date',
-      });
-    }
-
     const book = await createBook({
       title,
       author,
       isbn,
-      publishedAt: date,
+      publishedAt,
     });
 
     return res.status(201).json(book);
@@ -70,13 +51,7 @@ export const getBooksController = async (req, res) => {
 
 export const getBookByIdController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
+    const { id } = req.params;
 
     const book = await getBookById(id);
 
@@ -98,13 +73,7 @@ export const getBookByIdController = async (req, res) => {
 
 export const updateBookController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
+    const { id } = req.params;
 
     const {
       title,
@@ -112,25 +81,6 @@ export const updateBookController = async (req, res) => {
       isbn,
       publishedAt,
     } = req.body;
-
-    if (
-      title === undefined ||
-      author === undefined ||
-      isbn === undefined ||
-      publishedAt === undefined
-    ) {
-      return res.status(400).json({
-        message: 'PUT requires title, author, isbn and publishedAt',
-      });
-    }
-
-    const date = new Date(publishedAt);
-
-    if (Number.isNaN(date.getTime())) {
-      return res.status(400).json({
-        message: 'publishedAt must be a valid date',
-      });
-    }
 
     const existingBook = await getBookById(id);
 
@@ -144,7 +94,7 @@ export const updateBookController = async (req, res) => {
       title,
       author,
       isbn,
-      publishedAt: date,
+      publishedAt,
     });
 
     return res.status(200).json(book);
@@ -159,31 +109,7 @@ export const updateBookController = async (req, res) => {
 
 export const patchBookController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
-
-    const {
-      title,
-      author,
-      isbn,
-      publishedAt,
-    } = req.body;
-
-    if (
-      title === undefined &&
-      author === undefined &&
-      isbn === undefined &&
-      publishedAt === undefined
-    ) {
-      return res.status(400).json({
-        message: 'PATCH requires at least one field to update',
-      });
-    }
+    const { id } = req.params;
 
     const existingBook = await getBookById(id);
 
@@ -193,33 +119,7 @@ export const patchBookController = async (req, res) => {
       });
     }
 
-    const data = {};
-
-    if (title !== undefined) {
-      data.title = title;
-    }
-
-    if (author !== undefined) {
-      data.author = author;
-    }
-
-    if (isbn !== undefined) {
-      data.isbn = isbn;
-    }
-
-    if (publishedAt !== undefined) {
-      const date = new Date(publishedAt);
-
-      if (Number.isNaN(date.getTime())) {
-        return res.status(400).json({
-          message: 'publishedAt must be a valid date',
-        });
-      }
-
-      data.publishedAt = date;
-    }
-
-    const book = await patchBook(id, data);
+    const book = await patchBook(id, req.body);
 
     return res.status(200).json(book);
   } catch (error) {
@@ -233,13 +133,7 @@ export const patchBookController = async (req, res) => {
 
 export const deleteBookController = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
+    const { id } = req.params;
 
     const existingBook = await getBookById(id);
 
@@ -277,63 +171,12 @@ export const queryBooksController = async (req, res) => {
       publishedAt,
     } = req.body;
 
-    if (
-      id === undefined &&
-      title === undefined &&
-      author === undefined &&
-      isbn === undefined &&
-      publishedAt === undefined
-    ) {
-      return res.status(400).json({
-        message: 'QUERY requires at least one query criterion',
-      });
-    }
-
-    if (
-      id !== undefined &&
-      (!Number.isInteger(id) || id <= 0)
-    ) {
-      return res.status(400).json({
-        message: 'id must be a positive integer',
-      });
-    }
-
-    if (title !== undefined && typeof title !== 'string') {
-      return res.status(400).json({
-        message: 'title must be a string',
-      });
-    }
-
-    if (author !== undefined && typeof author !== 'string') {
-      return res.status(400).json({
-        message: 'author must be a string',
-      });
-    }
-
-    if (isbn !== undefined && typeof isbn !== 'string') {
-      return res.status(400).json({
-        message: 'isbn must be a string',
-      });
-    }
-
-    let date;
-
-    if (publishedAt !== undefined) {
-      date = new Date(publishedAt);
-
-      if (Number.isNaN(date.getTime())) {
-        return res.status(400).json({
-          message: 'publishedAt must be a valid date',
-        });
-      }
-    }
-
     const books = await queryBooks({
       id,
       title,
       author,
       isbn,
-      publishedAt: date,
+      publishedAt,
     });
 
     return res.status(200).json(books);

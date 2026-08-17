@@ -50,8 +50,17 @@ export const deleteUser = async (id) => {
   });
 };
 
-export const queryUsers = async ({ name, email }) => {
+export const queryUsers = async ({
+  id,
+  name,
+  email,
+  createdAt,
+}) => {
   const where = {};
+
+  if (id !== undefined) {
+    where.id = id;
+  }
 
   if (name !== undefined) {
     where.name = name;
@@ -59,6 +68,10 @@ export const queryUsers = async ({ name, email }) => {
 
   if (email !== undefined) {
     where.email = email;
+  }
+
+  if (createdAt !== undefined) {
+    where.createdAt = createdAt;
   }
 
   return await prisma.user.findMany({
