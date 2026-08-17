@@ -77,6 +77,45 @@ export const deleteLoan = async (id) => {
   });
 };
 
+export const queryLoans = async ({
+  id,
+  userId,
+  bookId,
+  borrowedAt,
+  dueDate,
+  returnedAt,
+}) => {
+  const where = {};
+
+  if (id !== undefined) {
+    where.id = id;
+  }
+
+  if (userId !== undefined) {
+    where.userId = userId;
+  }
+
+  if (bookId !== undefined) {
+    where.bookId = bookId;
+  }
+
+  if (borrowedAt !== undefined) {
+    where.borrowedAt = borrowedAt;
+  }
+
+  if (dueDate !== undefined) {
+    where.dueDate = dueDate;
+  }
+
+  if (returnedAt !== undefined) {
+    where.returnedAt = returnedAt;
+  }
+
+  return await prisma.loan.findMany({
+    where,
+  });
+};
+
 export const userExists = async (userId) => {
   const user = await getUserById(userId);
 

@@ -5,7 +5,8 @@ import {
   getLoanByIdController,
   updateLoanController,
   patchLoanController,
-  deleteLoanController
+  deleteLoanController,
+  queryLoansController
 } from './loan.controller.js';
 
 const router = Router();
@@ -16,6 +17,6 @@ router.get('/:id', getLoanByIdController);
 router.put('/:id', updateLoanController);
 router.patch('/:id', patchLoanController);
 router.delete('/:id', deleteLoanController);
-
+router.query('/', queryLoansController);
 
 export default router;

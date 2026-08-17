@@ -5,6 +5,7 @@ import {
   updateLoan,
   patchLoan,
   deleteLoan,
+  queryLoans,
   userExists,
   bookExists,
   bookHasActiveLoan
@@ -410,6 +411,114 @@ export const deleteLoanController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error deleting loan',
+    });
+  }
+};
+
+
+export const queryLoansController = async (req, res) => {
+  try {
+    const {
+      id,
+      userId,
+      bookId,
+      borrowedAt,
+      dueDate,
+      returnedAt,
+    } = req.body;
+
+    if (
+      id === undefined &&
+      userId === undefined &&
+      bookId === undefined &&
+      borrowedAt === undefined &&
+      dueDate === undefined &&
+      returnedAt === undefined
+    ) {
+      return res.status(400).json({
+        message: 'QUERY requires at least one query criterion',
+      });
+    }
+
+    if (id !== undefined && (!Number.isInteger(id) || id <= 0)) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    if (
+      userId !== undefined &&
+      (!Number.isInteger(userId) || userId <= 0)
+    ) {
+      return res.status(400).json({
+        message: 'userId must be a positive integer',
+      });
+    }
+
+    if (
+      bookId !== undefined &&
+      (!Number.isInteger(bookId) || bookId <= 0)
+    ) {
+      return res.status(400).json({
+        message: 'bookId must be a positive integer',
+      });
+    }
+
+    let borrowedDate;
+
+    if (borrowedAt !== undefined) {
+      borrowedDate = new Date(borrowedAt);
+
+      if (Number.isNaN(borrowedDate.getTime())) {
+        return res.status(400).json({
+          message: 'borrowedAt must be a valid date',
+        });
+      }
+    }
+
+    let dueDateValue;
+
+    if (dueDate !== undefined) {
+      dueDateValue = new Date(dueDate);
+
+      if (Number.isNaN(dueDateValue.getTime())) {
+        return res.status(400).json({
+          message: 'dueDate must be a valid date',
+        });
+      }
+    }
+
+    let returnedDate;
+
+    if (returnedAt !== undefined) {
+      if (returnedAt === null) {
+        returnedDate = null;
+      } else {
+        returnedDate = new Date(returnedAt);
+
+        if (Number.isNaN(returnedDate.getTime())) {
+          return res.status(400).json({
+            message: 'returnedAt must be a valid date or null',
+          });
+        }
+      }
+    }
+
+    const loans = await queryLoans({
+      id,
+      userId,
+      bookId,
+      borrowedAt: borrowedDate,
+      dueDate: dueDateValue,
+      returnedAt: returnedDate,
+    });
+
+    return res.status(200).json(loans);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error querying loans',
     });
   }
 };
