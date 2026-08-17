@@ -24,6 +24,17 @@ export const getLoans = async () => {
   return await prisma.loan.findMany();
 };
 
+export const getLoanById = async (id) => {
+  return await prisma.loan.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      user: true,
+      book: true,
+    },
+  });
+};
 
 export const userExists = async (userId) => {
   const user = await getUserById(userId);

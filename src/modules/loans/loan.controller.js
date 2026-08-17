@@ -1,6 +1,7 @@
 import {
   createLoan,
   getLoans,
+  getLoanById,
   userExists,
   bookExists,
   bookHasActiveLoan
@@ -115,6 +116,34 @@ export const getLoansController = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error getting loans',
+    });
+  }
+};
+
+export const getLoanByIdController = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: 'id must be a positive integer',
+      });
+    }
+
+    const loan = await getLoanById(id);
+
+    if (!loan) {
+      return res.status(404).json({
+        message: 'Loan not found',
+      });
+    }
+
+    return res.status(200).json(loan);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting loan',
     });
   }
 };
