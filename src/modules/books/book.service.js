@@ -49,3 +49,12 @@ export const updateBook = async (
     },
   });
 };
+
+export const patchBook = async (id, data) => {
+  return await prisma.book.update({
+    where: {
+      id,
+    },
+    data,
+  });
+};
