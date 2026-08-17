@@ -27,3 +27,25 @@ export const getBookById = async (id) => {
     },
   });
 };
+
+export const updateBook = async (
+  id,
+  {
+    title,
+    author,
+    isbn,
+    publishedAt,
+  },
+) => {
+  return await prisma.book.update({
+    where: {
+      id,
+    },
+    data: {
+      title,
+      author,
+      isbn,
+      publishedAt,
+    },
+  });
+};
