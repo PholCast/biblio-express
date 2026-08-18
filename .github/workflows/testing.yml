@@ -24,3 +24,6 @@ jobs:
 
       - name: Run tests with coverage
         run: pnpm test:coverage
+
+      - name: Deploy to Render Testing
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_TESTING }}"
