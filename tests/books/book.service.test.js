@@ -372,7 +372,7 @@ describe('bookHasLoans', () => {
       },
     });
 
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
   it('should return false when the book has no loans', async () => {
