@@ -27,5 +27,8 @@ jobs:
         env:
           COVERAGE_THRESHOLD: 85
 
+      - name: Build Docker image
+        run: docker build -t biblio-express .
+
       - name: Deploy to Render Production
         run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_PRODUCTION }}"
