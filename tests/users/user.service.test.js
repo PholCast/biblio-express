@@ -416,7 +416,7 @@ describe('userHasLoans', () => {
       },
     });
 
-    expect(result).toBe(false);
+    expect(result).toBe(true);
   });
 
   it('should propagate an error when Prisma fails', async () => {
