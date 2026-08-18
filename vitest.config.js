@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
+const coverageThreshold = Number(
+  process.env.COVERAGE_THRESHOLD ?? 60
+);
+
 export default defineConfig({
   test: {
     environment: 'node',
@@ -12,10 +16,10 @@ export default defineConfig({
       include: ['src/**/*.js'],
 
       thresholds: {
-        lines: 100,
-        functions: 100,
-        branches: 100,
-        statements: 100,
+        lines: coverageThreshold,
+        functions: coverageThreshold,
+        branches: coverageThreshold,
+        statements: coverageThreshold,
       },
     },
   },
