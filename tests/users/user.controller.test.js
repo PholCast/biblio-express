@@ -10,6 +10,7 @@ vi.mock('../../src/modules/users/user.service.js', () => ({
   createUser: vi.fn(),
   getUsers: vi.fn(),
   getUserById: vi.fn(),
+  getUserByEmail: vi.fn(),
   updateUser: vi.fn(),
   patchUser: vi.fn(),
   deleteUser: vi.fn(),
@@ -26,6 +27,7 @@ import {
   deleteUser,
   queryUsers,
   userHasLoans,
+  getUserByEmail
 } from '../../src/modules/users/user.service.js';
 
 import {
@@ -69,9 +71,12 @@ describe('createUserController', () => {
       email: 'john@example.com',
     };
 
+    getUserByEmail.mockResolvedValue(null);
     createUser.mockResolvedValue(user);
 
     await createUserController(req, res);
+
+    expect(getUserByEmail).toHaveBeenCalledWith('john@example.com');
 
     expect(createUser).toHaveBeenCalledOnce();
 
@@ -104,6 +109,37 @@ describe('createUserController', () => {
 
     expect(res.json).toHaveBeenCalledWith({
       message: 'Error creating user',
+    });
+  });
+
+  it('should return 409 when the email already exists', async () => {
+    const req = {
+      body: {
+        name: 'John Doe',
+        email: 'john@example.com',
+      },
+    };
+
+    const res = createResponseMock();
+
+    getUserByEmail.mockResolvedValue({
+      id: 1,
+      name: 'Existing User',
+      email: 'john@example.com',
+    });
+
+    await createUserController(req, res);
+
+    expect(getUserByEmail).toHaveBeenCalledWith(
+      'john@example.com'
+    );
+
+    expect(createUser).not.toHaveBeenCalled();
+
+    expect(res.status).toHaveBeenCalledWith(409);
+
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User with this email already exists',
     });
   });
 });
@@ -251,11 +287,14 @@ describe('updateUserController', () => {
     };
 
     getUserById.mockResolvedValue(existingUser);
+    getUserByEmail.mockResolvedValue(null);
     updateUser.mockResolvedValue(updatedUser);
 
     await updateUserController(req, res);
 
     expect(getUserById).toHaveBeenCalledWith(1);
+
+    expect(getUserByEmail).toHaveBeenCalledWith('updated@example.com');
 
     expect(updateUser).toHaveBeenCalledWith(1, {
       name: 'Updated User',
@@ -322,6 +361,48 @@ describe('updateUserController', () => {
 
     expect(res.json).toHaveBeenCalledWith({
       message: 'Error updating user',
+    });
+  });
+
+  it('should return 409 when the email belongs to another user', async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+      body: {
+        name: 'Updated User',
+        email: 'existing@example.com',
+      },
+    };
+
+    const res = createResponseMock();
+
+    getUserById.mockResolvedValue({
+      id: 1,
+      name: 'John Doe',
+      email: 'john@example.com',
+    });
+
+    getUserByEmail.mockResolvedValue({
+      id: 2,
+      name: 'Another User',
+      email: 'existing@example.com',
+    });
+
+    await updateUserController(req, res);
+
+    expect(getUserById).toHaveBeenCalledWith(1);
+
+    expect(getUserByEmail).toHaveBeenCalledWith(
+      'existing@example.com'
+    );
+
+    expect(updateUser).not.toHaveBeenCalled();
+
+    expect(res.status).toHaveBeenCalledWith(409);
+
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User with this email already exists',
     });
   });
 });

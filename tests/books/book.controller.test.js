@@ -10,6 +10,7 @@ vi.mock('../../src/modules/books/book.service.js', () => ({
   createBook: vi.fn(),
   getBooks: vi.fn(),
   getBookById: vi.fn(),
+  getBookByIsbn: vi.fn(),
   updateBook: vi.fn(),
   patchBook: vi.fn(),
   deleteBook: vi.fn(),
@@ -26,6 +27,7 @@ import {
   deleteBook,
   queryBooks,
   bookHasLoans,
+  getBookByIsbn
 } from '../../src/modules/books/book.service.js';
 
 import {
@@ -70,9 +72,12 @@ describe('createBookController', () => {
       ...req.body,
     };
 
+    getBookByIsbn.mockResolvedValue(null);
     createBook.mockResolvedValue(book);
 
     await createBookController(req, res);
+
+    expect(getBookByIsbn).toHaveBeenCalledWith('9780132350884');
 
     expect(createBook).toHaveBeenCalledWith(req.body);
     expect(res.status).toHaveBeenCalledWith(201);
@@ -245,11 +250,14 @@ describe('updateBookController', () => {
     };
 
     getBookById.mockResolvedValue(existingBook);
+    getBookByIsbn.mockResolvedValue(null);
     updateBook.mockResolvedValue(updatedBook);
 
     await updateBookController(req, res);
 
     expect(getBookById).toHaveBeenCalledWith(1);
+    expect(getBookByIsbn).toHaveBeenCalledWith('9780132350884');
+
     expect(updateBook).toHaveBeenCalledWith(1, req.body);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(updatedBook);
