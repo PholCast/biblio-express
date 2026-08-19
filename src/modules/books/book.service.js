@@ -110,3 +110,11 @@ export const bookHasLoans = async (bookId) => {
 
   return loan !== null;
 };
+
+export const getBookByIsbn = async (isbn) => {
+  return await prisma.book.findUnique({
+    where: {
+      isbn,
+    },
+  });
+};

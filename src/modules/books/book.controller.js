@@ -6,7 +6,8 @@ import {
   patchBook,
   deleteBook,
   queryBooks,
-  bookHasLoans
+  bookHasLoans,
+  getBookByIsbn
 } from './book.service.js';
 
 export const createBookController = async (req, res) => {
@@ -17,6 +18,14 @@ export const createBookController = async (req, res) => {
       isbn,
       publishedAt,
     } = req.body;
+
+    const existingBook = await getBookByIsbn(isbn);
+
+    if (existingBook) {
+      return res.status(409).json({
+        message: 'Book with this ISBN already exists',
+      });
+    }
 
     const book = await createBook({
       title,
@@ -90,6 +99,14 @@ export const updateBookController = async (req, res) => {
       });
     }
 
+    const bookWithIsbn = await getBookByIsbn(isbn);
+
+    if (bookWithIsbn && bookWithIsbn.id !== Number(id)) {
+      return res.status(409).json({
+        message: 'Book with this ISBN already exists',
+      });
+    }
+
     const book = await updateBook(id, {
       title,
       author,
@@ -117,6 +134,16 @@ export const patchBookController = async (req, res) => {
       return res.status(404).json({
         message: 'Book not found',
       });
+    }
+
+    if (req.body.isbn !== undefined) {
+      const bookWithIsbn = await getBookByIsbn(req.body.isbn);
+
+      if (bookWithIsbn && bookWithIsbn.id !== Number(id)) {
+        return res.status(409).json({
+          message: 'Book with this ISBN already exists',
+        });
+      }
     }
 
     const book = await patchBook(id, req.body);

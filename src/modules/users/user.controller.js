@@ -6,12 +6,21 @@ import {
   patchUser,
   deleteUser,
   queryUsers,
-  userHasLoans 
+  userHasLoans,
+  getUserByEmail
 } from './user.service.js';
 
 export const createUserController = async (req, res) => {
   try {
     const { name, email } = req.body;
+
+    const existingUser = await getUserByEmail(email);
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: 'User with this email already exists',
+      });
+    }
 
     const user = await createUser({
       name,
@@ -77,6 +86,14 @@ export const updateUserController = async (req, res) => {
       });
     }
 
+    const userWithEmail = await getUserByEmail(email);
+
+    if (userWithEmail && userWithEmail.id !== Number(id)) {
+      return res.status(409).json({
+        message: 'User with this email already exists',
+      });
+    }
+
     const user = await updateUser(id, {
       name,
       email,
@@ -103,6 +120,16 @@ export const patchUserController = async (req, res) => {
       return res.status(404).json({
         message: 'User not found',
       });
+    }
+
+    if (req.body.email !== undefined) {
+      const userWithEmail = await getUserByEmail(req.body.email);
+
+      if (userWithEmail && userWithEmail.id !== Number(id)) {
+        return res.status(409).json({
+          message: 'User with this email already exists',
+        });
+      }
     }
 
     const user = await patchUser(id, req.body);

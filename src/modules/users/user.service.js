@@ -88,3 +88,11 @@ export const userHasLoans = async (userId) => {
 
   return loan !== null;
 };
+
+export const getUserByEmail = async (email) => {
+  return await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+};
