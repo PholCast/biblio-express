@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 const DOCTORS_API_URL = process.env.DOCTORS_API_URL;
 
 export const getDoctors = async () => {
