@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import {
   createBookController,
-  getBookByIdController,
+  getBooksController,
   updateBookController,
   patchBookController,
   deleteBookController,
@@ -11,7 +11,6 @@ import {
 
 import {
   createBookSchema,
-  getBookByIdSchema,
   updateBookSchema,
   patchBookSchema,
   deleteBookSchema,
@@ -28,11 +27,7 @@ router.post(
   createBookController
 );
 
-router.get(
-  '/:id',
-  validate(getBookByIdSchema),
-  getBookByIdController
-);
+router.get('/', getBooksController);
 
 router.put(
   '/:id',
