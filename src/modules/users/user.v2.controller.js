@@ -1,4 +1,5 @@
 import { getUserById } from './user.service.js';
+import { getLastUser } from './user.v2.service.js';
 import { getPokemon } from '../../integrations/pokemon/pokemon.client.js';
 import { getDoctor } from '../../integrations/doctors/doctors.client.js';
 
@@ -29,6 +30,26 @@ export const getUserByIdV2Controller = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error getting user, Pokemon and doctor',
+    });
+  }
+};
+
+export const getLastUserV2Controller = async (req, res) => {
+  try {
+    const user = await getLastUser();
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'No users found',
+      });
+    }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting last user',
     });
   }
 };
