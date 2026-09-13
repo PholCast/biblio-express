@@ -4,7 +4,7 @@ const POKEMON_API_URL = process.env.POKEMON_API_URL;
 
 export const getPokemon = async () => {
   const response = await fetch(
-    `${POKEMON_API_URL}/pokemon`
+    `${POKEMON_API_URL}/api/v2/pokemon/last`
   );
 
   if (!response.ok) {
