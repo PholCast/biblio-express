@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import {
   createUserController,
-  getUserByIdController,
+  getUsersController,
   updateUserController,
   patchUserController,
   deleteUserController,
@@ -11,7 +11,6 @@ import {
 
 import {
   createUserSchema,
-  getUserByIdSchema,
   updateUserSchema,
   patchUserSchema,
   deleteUserSchema,
@@ -28,11 +27,7 @@ router.post(
   createUserController
 );
 
-router.get(
-  '/:id',
-  validate(getUserByIdSchema),
-  getUserByIdController
-);
+router.get('/', getUsersController);
 
 router.put(
   '/:id',
