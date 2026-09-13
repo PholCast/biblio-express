@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { getLoanByIdV2Controller } from './loan.v2.controller.js';
+import { getLoanByIdV2Controller, getLastLoanV2Controller } from './loan.v2.controller.js';
 import commonRoutes from './loan.common.routes.js';
 import { validate } from '../../middlewares/validate.js';
 
@@ -8,6 +8,11 @@ import { getLoanByIdSchema } from './loan.schema.js';
 
 
 const router = Router();
+
+router.get(
+  '/last',
+  getLastLoanV2Controller
+);
 
 router.get(
   '/:id',
