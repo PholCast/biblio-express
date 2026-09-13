@@ -1,12 +1,18 @@
 import { Router } from 'express';
 
-import { getLoansController } from './loan.controller.js';
+import { getLoanByIdController } from './loan.controller.js';
 import commonRoutes from './loan.common.routes.js';
+import { validate } from '../../middlewares/validate.js';
 
+import { getLoanByIdSchema } from './loan.schema.js';
 
 const router = Router();
 
-router.get('/', getLoansController);
+router.get(
+  '/:id',
+  validate(getLoanByIdSchema),
+  getLoanByIdController
+);
 
 router.use(commonRoutes);
 

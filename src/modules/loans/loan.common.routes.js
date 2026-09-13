@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import {
   createLoanController,
-  getLoanByIdController,
+  getLoansController,
   updateLoanController,
   patchLoanController,
   deleteLoanController,
@@ -11,7 +11,6 @@ import {
 
 import {
   createLoanSchema,
-  getLoanByIdSchema,
   updateLoanSchema,
   patchLoanSchema,
   deleteLoanSchema,
@@ -28,11 +27,7 @@ router.post(
   createLoanController
 );
 
-router.get(
-  '/:id',
-  validate(getLoanByIdSchema),
-  getLoanByIdController
-);
+router.get('/', getLoansController);
 
 router.put(
   '/:id',

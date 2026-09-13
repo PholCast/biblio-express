@@ -1,3 +1,3 @@
-export const getLoansV2Controller = (req, res) => {
+export const getLoanByIdV2Controller = (req, res) => {
   res.status(200).json([]);
 };
