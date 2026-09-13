@@ -1,4 +1,5 @@
 import { getBookById } from './book.service.js';
+import { getLastBook } from './book.v2.service.js';
 import { getPokemon } from '../../integrations/pokemon/pokemon.client.js';
 import { getDoctor } from '../../integrations/doctors/doctors.client.js';
 
@@ -29,6 +30,26 @@ export const getBookByIdV2Controller = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error getting book, Pokemon and doctor',
+    });
+  }
+};
+
+export const getLastBookV2Controller = async (req, res) => {
+  try {
+    const book = await getLastBook();
+
+    if (!book) {
+      return res.status(404).json({
+        message: 'No books found',
+      });
+    }
+
+    return res.status(200).json(book);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: 'Error getting last book',
     });
   }
 };
