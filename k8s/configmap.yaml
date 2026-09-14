@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: biblio-api-config
+  namespace: biblio
+data:
+  PORT: "3000"
