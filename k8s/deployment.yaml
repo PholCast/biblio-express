@@ -19,6 +19,7 @@ spec:
       containers:
         - name: biblio-api
           image: biblio-express:v2
+          imagePullPolicy: Never
 
           ports:
             - containerPort: 3000
