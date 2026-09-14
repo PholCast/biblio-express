@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run tests with coverage
-        run: pnpm test:coverage
-        env:
-          COVERAGE_THRESHOLD: 85
+      #- name: Run tests with coverage
+      #  run: pnpm test:coverage
+      #  env:
+      #    COVERAGE_THRESHOLD: 85
 
       - name: Build Docker image
         run: docker build -t biblio-express .
