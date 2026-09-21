@@ -27,3 +27,22 @@ export const uploadJson = async (blobName, data) => {
 
   return blobName;
 };
+
+export const uploadFlowArtifact = async ({
+  entity,
+  id,
+  traceId,
+  request,
+  response,
+}) => {
+  const data = {
+    traceId,
+    timestamp: new Date().toISOString(),
+    request,
+    response,
+  };
+
+  const blobName = `${entity}/${id}-${traceId}.json`;
+
+  return uploadJson(blobName, data);
+};
