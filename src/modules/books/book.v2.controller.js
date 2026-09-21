@@ -1,7 +1,7 @@
 import { getBookById } from './book.service.js';
 import { getLastBook } from './book.v2.service.js';
-import { getPokemon } from '../../integrations/pokemon/pokemon.client.js';
-import { getDoctor } from '../../integrations/doctors/doctors.client.js';
+import { getExternalEntities } from '../../integrations/external-entities.service.js';
+import { sendResponseWithArtifact } from '../../infrastructure/storage/flow-artifact.service.js';
 
 export const getBookByIdV2Controller = async (req, res) => {
   try {
@@ -15,16 +15,22 @@ export const getBookByIdV2Controller = async (req, res) => {
       });
     }
 
-    const [pokemon, doctor] = await Promise.all([
-      getPokemon(),
-      getDoctor(),
-    ]);
+    const { pokemon, doctor } = await getExternalEntities();
 
-    return res.status(200).json({
+    const responseBody = {
       book,
       pokemon,
       doctor,
+    };
+  
+    return sendResponseWithArtifact({
+      req,
+      res,
+      entity: 'books',
+      id,
+      body: responseBody,
     });
+
   } catch (error) {
     console.error(error);
 
