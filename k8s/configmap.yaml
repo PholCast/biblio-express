@@ -5,3 +5,5 @@ metadata:
   namespace: biblio
 data:
   PORT: "3000"
+  AZURE_STORAGE_ACCOUNT_NAME: "bibliostorage"
+  AZURE_STORAGE_CONTAINER_NAME: "attachments"
