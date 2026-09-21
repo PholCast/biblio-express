@@ -4,7 +4,7 @@ metadata:
   name: biblio-api-v2
   namespace: biblio
 spec:
-  ingressClassName: nginx
+  ingressClassName: webapprouting.kubernetes.azure.com
   rules:
     - http:
         paths:

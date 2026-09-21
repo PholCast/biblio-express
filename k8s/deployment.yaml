@@ -18,8 +18,8 @@ spec:
     spec:
       containers:
         - name: biblio-api
-          image: biblio-express:v2
-          imagePullPolicy: Never
+          image: biblioacrphol.azurecr.io/biblio-express:v2
+          imagePullPolicy: IfNotPresent
 
           ports:
             - containerPort: 3000
@@ -30,6 +30,11 @@ spec:
 
             - secretRef:
                 name: biblio-api-secret
+
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: /mnt/secrets-store
+              readOnly: true
 
           resources:
             requests:
@@ -52,3 +57,11 @@ spec:
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
+
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: biblio-api-secrets
