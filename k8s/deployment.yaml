@@ -14,8 +14,11 @@ spec:
     metadata:
       labels:
         app: biblio-api-v2
+        azure.workload.identity/use: "true"
 
     spec:
+      serviceAccountName: biblio-api-sa
+
       containers:
         - name: biblio-api
           image: biblioacrphol.azurecr.io/biblio-express:v2
