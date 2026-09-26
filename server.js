@@ -1,8 +1,11 @@
-import app from './src/app.js'
-import "dotenv/config";
+import 'dotenv/config';
 
-const PORT = process.env.PORT
+await import('./src/observability/telemetry.js');
 
-app.listen(PORT, () =>{
-    console.log(`Server running on PORT: ${PORT}`);
-})
+const { default: app } = await import('./src/app.js');
+
+const PORT = process.env.PORT;
+
+app.listen(PORT, () => {
+  console.log(`Server running on PORT: ${PORT}`);
+});
