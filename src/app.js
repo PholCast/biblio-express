@@ -1,15 +1,18 @@
 import express from 'express';
 import apiRoutes from './routes/api.routes.js';
 import apiV2Routes from './routes/api.v2.routes.js';
+import { requestLogger } from './observability/request-logger.js';
 
 const app = express();
 
 app.use(express.json());
 
+app.use(requestLogger);
+
 app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'ok',
-    });
+  res.status(200).json({
+    status: 'ok',
+  });
 });
 
 app.use('/api', apiRoutes);
