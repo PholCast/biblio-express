@@ -10,7 +10,28 @@ const sdk = new NodeSDK({
     exporter: new OTLPMetricExporter(),
   }),
   instrumentations: [
-    getNodeAutoInstrumentations(),
+    getNodeAutoInstrumentations({
+      '@opentelemetry/instrumentation-http': {
+        enabled: true,
+        applyCustomAttributesOnSpan: (span, request) => {
+          const route = request.route?.path;
+
+          if (route) {
+            const base = request.baseUrl && request.baseUrl !== '/'
+              ? request.baseUrl
+              : '';
+
+            const fullRoute = `${base}${route}`;
+
+            span.setAttribute('http.route', fullRoute);
+            span.updateName(`${request.method} ${fullRoute}`);
+          }
+        },
+      },
+      '@opentelemetry/instrumentation-express': {
+        enabled: true,
+      },
+    }),
   ],
 });
 
