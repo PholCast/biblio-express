@@ -1,10 +1,10 @@
 import { getPokemon } from './pokemon/pokemon.client.js';
 import { getDoctor } from './doctors/doctors.client.js';
 
-export const getExternalEntities = async () => {
+export const getExternalEntities = async (traceId) => {
   const [pokemonResult, doctorResult] = await Promise.allSettled([
-    getPokemon(),
-    getDoctor(),
+    getPokemon(traceId),
+    getDoctor(traceId),
   ]);
 
   if (pokemonResult.status === 'rejected') {

@@ -32,11 +32,17 @@ export const uploadFlowArtifact = async ({
   entity,
   id,
   traceId,
+  otelTraceId,
+  spanId,
+  traceparent,
   request,
   response,
 }) => {
   const data = {
-    traceId,
+    'x-trace-id': traceId,
+    otelTraceId,
+    spanId,
+    traceparent,
     timestamp: new Date().toISOString(),
     request,
     response,

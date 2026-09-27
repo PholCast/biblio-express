@@ -1,5 +1,6 @@
-import crypto from 'node:crypto';
 import { uploadFlowArtifact } from './blob-storage.service.js';
+import { trace } from '@opentelemetry/api';
+
 
 export const sendResponseWithArtifact = async ({
   req,
@@ -9,17 +10,26 @@ export const sendResponseWithArtifact = async ({
   body,
   statusCode = 200,
 }) => {
-  const traceId = req.headers['trace-id'] || crypto.randomUUID();
+  const traceId = req.traceId;
+  const span = trace.getActiveSpan();
+  const spanContext = span?.spanContext();
+
+  const otelTraceId = spanContext?.traceId;
+  const spanId = spanContext?.spanId;
+  const traceparent = req.headers['traceparent'];
 
   try {
     await uploadFlowArtifact({
       entity,
       id,
       traceId,
+      otelTraceId,
+      spanId,
+      traceparent,
       request: {
         method: req.method,
         path: req.originalUrl,
-        traceId,
+        'x-trace-id': traceId,
       },
       response: {
         statusCode,

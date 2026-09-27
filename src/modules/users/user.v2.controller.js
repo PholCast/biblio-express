@@ -15,7 +15,7 @@ export const getUserByIdV2Controller = async (req, res) => {
       });
     }
 
-    const { pokemon, doctor } = await getExternalEntities();
+    const { pokemon, doctor } = await getExternalEntities(req.traceId);
 
     const responseBody = {
       user,

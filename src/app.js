@@ -2,11 +2,12 @@ import express from 'express';
 import apiRoutes from './routes/api.routes.js';
 import apiV2Routes from './routes/api.v2.routes.js';
 import { requestLogger } from './observability/request-logger.js';
+import { traceContext } from './observability/trace-context.js';
 
 const app = express();
 
 app.use(express.json());
-
+app.use(traceContext);
 app.use(requestLogger);
 
 app.get('/health', (req, res) => {
