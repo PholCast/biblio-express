@@ -1,5 +1,38 @@
-import { uploadFlowArtifact } from './blob-storage.service.js';
 import { trace } from '@opentelemetry/api';
+import 'dotenv/config';
+
+const objectStorageUrl =
+  process.env.OBJECT_STORAGE_URL || 'http://object-storage:3001';
+
+const objectStorageTimeoutMs = Number(
+  process.env.OBJECT_STORAGE_TIMEOUT_MS || 5000
+);
+
+const uploadFlowArtifact = async (artifact) => {
+  const headers = {
+    'content-type': 'application/json',
+    'x-trace-id': artifact.traceId,
+  };
+
+  if (artifact.traceparent) {
+    headers.traceparent = artifact.traceparent;
+  }
+
+  const response = await fetch(`${objectStorageUrl}/artifacts`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(artifact),
+    signal: AbortSignal.timeout(objectStorageTimeoutMs),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Object Storage returned status ${response.status}`
+    );
+  }
+
+  return response.json();
+};
 
 
 export const sendResponseWithArtifact = async ({
