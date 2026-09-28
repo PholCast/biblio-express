@@ -5,5 +5,7 @@ metadata:
   namespace: biblio
 data:
   PORT: "3000"
-  AZURE_STORAGE_ACCOUNT_NAME: "bibliostorage"
-  AZURE_STORAGE_CONTAINER_NAME: "attachments"
+  OBJECT_STORAGE_URL: "http://object-storage:3001"
+  OBJECT_STORAGE_TIMEOUT_MS: "5000"
+  OTEL_SERVICE_NAME: "biblio-api-azure"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
