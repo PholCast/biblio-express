@@ -1,0 +1,29 @@
+{
+  "name": "biblio-object-storage",
+  "version": "1.0.0",
+  "description": "Object Storage microservice for Biblio Express",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.6.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.6.0",
+  "type": "module",
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@azure/storage-blob": "^12.33.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
