@@ -1,0 +1,113 @@
+name: Object Storage - CI/CD Azure
+
+on:
+  push:
+    branches: [main]
+    tags: ['object-storage-v*']
+    paths:
+      - 'object-storage/**'
+      - 'k8s/object-storage-*.yaml'
+      - '.github/workflows/object-storage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ACR_NAME: biblioacrphol
+  ACR_LOGIN_SERVER: biblioacrphol.azurecr.io
+  AKS_RESOURCE_GROUP: rg-biblio-azure
+  AKS_CLUSTER_NAME: aks-biblio-azure
+  IMAGE_NAME: biblio-object-storage
+  AKS_NAMESPACE: biblio
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: object-storage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: object-storage/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Select image tag
+        id: image
+        shell: bash
+        working-directory: .
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^object-storage-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "tag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push image
+        working-directory: object-storage
+        run: |
+          docker build \
+            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.image.outputs.tag }}" \
+            .
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.image.outputs.tag }}"
+
+      - name: Verify image in Azure Container Registry
+        id: registry
+        working-directory: .
+        run: |
+          digest=$(az acr repository show \
+            --name "$ACR_NAME" \
+            --image "$IMAGE_NAME:${{ steps.image.outputs.tag }}" \
+            --query digest \
+            --output tsv)
+          if [[ -z "$digest" ]]; then
+            echo "ACR no devolvio un digest para la imagen publicada" >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      - name: Apply Object Storage manifests
+        working-directory: .
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/object-storage-configmap.yaml
+          kubectl apply -f k8s/object-storage-service-account.yaml
+          kubectl apply -f k8s/object-storage-service.yaml
+          kubectl apply -f k8s/object-storage-deployment.yaml
+          kubectl -n "$AKS_NAMESPACE" set image deployment/object-storage \
+            object-storage="$ACR_LOGIN_SERVER/$IMAGE_NAME@${{ steps.registry.outputs.digest }}"
+          kubectl -n "$AKS_NAMESPACE" rollout status deployment/object-storage --timeout=180s
+          deployed_image=$(kubectl -n "$AKS_NAMESPACE" get deployment/object-storage \
+            -o jsonpath='{.spec.template.spec.containers[?(@.name=="object-storage")].image}')
+          expected_image="$ACR_LOGIN_SERVER/$IMAGE_NAME@${{ steps.registry.outputs.digest }}"
+          if [[ "$deployed_image" != "$expected_image" ]]; then
+            echo "La imagen del Deployment no coincide con la imagen publicada" >&2
+            exit 1
+          fi
