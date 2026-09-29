@@ -2,6 +2,7 @@ import { getBookById } from './book.service.js';
 import { getLastBook } from './book.v2.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
 import { sendResponseWithArtifact } from '../../infrastructure/storage/flow-artifact.service.js';
+import { withV2Metadata } from '../../observability/v2-response.js';
 
 export const getBookByIdV2Controller = async (req, res) => {
   try {
@@ -50,7 +51,7 @@ export const getLastBookV2Controller = async (req, res) => {
       });
     }
 
-    return res.status(200).json(book);
+    return res.status(200).json(withV2Metadata(req, book));
   } catch (error) {
     console.error(error);
 

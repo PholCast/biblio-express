@@ -1,5 +1,6 @@
 import { trace } from '@opentelemetry/api';
 import 'dotenv/config';
+import { withV2Metadata } from '../../observability/v2-response.js';
 
 const objectStorageUrl =
   process.env.OBJECT_STORAGE_URL || 'http://object-storage:3001';
@@ -50,6 +51,7 @@ export const sendResponseWithArtifact = async ({
   const otelTraceId = spanContext?.traceId;
   const spanId = spanContext?.spanId;
   const traceparent = req.headers['traceparent'];
+  const responseBody = withV2Metadata(req, body);
 
   try {
     await uploadFlowArtifact({
@@ -73,5 +75,5 @@ export const sendResponseWithArtifact = async ({
     console.error('Blob Storage error:', error);
   }
 
-  return res.status(statusCode).json(body);
+  return res.status(statusCode).json(responseBody);
 };

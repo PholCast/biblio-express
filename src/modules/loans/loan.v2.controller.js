@@ -2,6 +2,7 @@ import { getLoanById } from './loan.service.js';
 import { getLastLoan } from './loan.v2.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
 import { sendResponseWithArtifact } from '../../infrastructure/storage/flow-artifact.service.js';
+import { withV2Metadata } from '../../observability/v2-response.js';
 
 export const getLoanByIdV2Controller = async (req, res) => {
   try {
@@ -49,7 +50,7 @@ export const getLastLoanV2Controller = async (req, res) => {
       });
     }
 
-    return res.status(200).json(loan);
+    return res.status(200).json(withV2Metadata(req, loan));
   } catch (error) {
     console.error(error);
 
