@@ -4,6 +4,23 @@ API RESTful para la gestión de una biblioteca, desarrollada con **Node.js**, **
 
 La API administra tres entidades: **Users**, **Books** y **Loans**, e implementa el método HTTP **QUERY** para consultas mediante criterios enviados en el cuerpo de la petición.
 
+## Responsables y nubes
+
+La distribución de los componentes transversales se mantiene separada por integrante y proveedor:
+
+| Integrante | Componente | Proveedor de nube |
+|---|---|---|
+| Phol Castañeda | API Biblio Express y Object Storage con su artefacto consumidor | Microsoft Azure |
+| Neithan Gómez | Microservicio orquestador y cola | Amazon Web Services (AWS) |
+| Daniela Higuita | Componente de caché | Google Cloud Platform (GCP) |
+
+Yo Phol Castañeda opero la API biblio-express y el Object Storage en Azure. Neithan Gómez opera el microservicio orquestador y la cola en AWS, mientras Daniela Higuita opera el componente de caché en GCP. Cada componente transversal se despliega en un proveedor distinto según la responsabilidad asignada.
+
+## Diagrama de arquitectura multicloud
+![alt text](arquitectura_multicloud.png)
+
+
+
 ## Tecnologías
 
 - Node.js 24
@@ -14,7 +31,6 @@ La API administra tres entidades: **Users**, **Books** y **Loans**, e implementa
 - Vitest
 - Docker
 - GitHub Actions
-- Render
 - pnpm 11
 
 ## Requisitos
@@ -67,8 +83,45 @@ Con `PORT=3000`, la aplicación queda disponible en `http://localhost:3000`.
 |---|---|
 | `PORT` | Puerto del servidor |
 | `DATABASE_URL` | URL de conexión a PostgreSQL |
+| `OBJECT_STORAGE_URL` | URL del microservicio Object Storage; por defecto `http://object-storage:3001` |
+| `OBJECT_STORAGE_TIMEOUT_MS` | Tiempo máximo de espera para guardar un artefacto, en milisegundos; por defecto `5000` |
 
 El archivo `.env` no debe subirse al repositorio. `.env.example` sirve como referencia.
+
+## Despliegue en Azure
+
+La API se publica como `biblio-express` en Azure Container Registry (ACR) y se despliega en Azure Kubernetes Service (AKS) mediante [`.github/workflows/api.yml`](.github/workflows/api.yml). El workflow construye la imagen, confirma su digest en ACR, aplica los manifiestos del clúster y espera el rollout de `biblio-api-v2`. Después comprueba que el Deployment usa exactamente ese digest.
+
+Configura el secreto `AZURE_CREDENTIALS` en GitHub Actions. Los valores de ACR y AKS están definidos en el workflow: `biblioacrphol`, `biblioacrphol.azurecr.io`, `rg-biblio-azure` y `aks-biblio-azure`. `AZURE_CREDENTIALS` debe corresponder a una identidad con permisos para publicar en ACR y administrar el clúster AKS.
+
+Cada componente se versiona con SemVer. Un push a `main` usa una imagen inmutable con tag `sha-<commit>`; una release de API se crea con un tag `api-vMAJOR.MINOR.PATCH`, por ejemplo `api-v1.1.0`. Para volver a una versión anterior se puede ejecutar `kubectl set image` con el tag semántico correspondiente.
+
+
+El workflow no aplica `k8s/secret.yaml`: las credenciales deben existir previamente en AKS y administrarse mediante Azure Key Vault/Secrets Store CSI. No se deben almacenar secretos en el repositorio.
+
+## Object Storage separado
+
+El almacenamiento de artefactos es un microservicio independiente en [`object-storage/README.md`](object-storage/README.md). La API no contiene credenciales ni el SDK de Azure: `sendResponseWithArtifact` conserva la firma usada por los controladores V2 y envía el artefacto completo mediante `POST /artifacts`.
+
+La comunicación dentro del clúster usa `http://object-storage:3001`. El cuerpo conserva las entidades (`book`, `loan` o `user`, además de `pokemon` y `doctor`) y los campos `traceId`, `otelTraceId`, `spanId` y `traceparent`. Si el almacenamiento no está disponible, la API registra el error y mantiene la respuesta de negocio, igual que antes.
+
+El microservicio tiene su propio `Dockerfile`, `package.json`, lockfile, README y pipeline `.github/workflows/object-storage.yml`. Su despliegue y sus manifiestos se documentan en [`object-storage/README.md`](object-storage/README.md).
+
+## Kubernetes de la API
+
+Los manifiestos de la API están en `k8s/` y se aplican al namespace `biblio`:
+
+- `namespace.yaml`: crea el namespace del sistema.
+- `configmap.yaml`: configuración no sensible de la API, incluido `OBJECT_STORAGE_URL`.
+- `service-account.yaml`: identidad administrada de la API para Azure Workload Identity.
+- `secret-provider-class.yaml`: integración con Azure Key Vault mediante Secrets Store CSI.
+- `secret.yaml`: referencia local de secretos; no se aplica desde el workflow ni debe contener credenciales en el repositorio.
+- `deployment.yaml`: despliega `biblio-api-v2`, sus variables, probes, recursos y volumen CSI.
+- `service.yaml`: expone la API dentro del clúster mediante un servicio `ClusterIP`.
+- `hpa.yaml`: configura el escalado horizontal del Deployment.
+- `ingress.yaml`: publica el tráfico HTTP externo hacia el servicio de la API.
+
+El workflow de la API aplica estos manifiestos en AKS y fija la imagen por digest después de publicarla en Azure Container Registry.
 
 
 ## 🗃️ Modelos de base de datos
@@ -196,6 +249,49 @@ Todas las rutas principales utilizan el prefijo `/api`.
 | `PATCH` | `/api/loans/:id` | Actualizar parcialmente préstamo |
 | `DELETE` | `/api/loans/:id` | Eliminar préstamo |
 | `QUERY` | `/api/loans` | Consultar préstamos |
+
+## API V2
+
+La versión V2 está disponible bajo el prefijo `/api/v2` y conserva todos los endpoints de la V1 para usuarios, libros y préstamos, usando la misma operación con el prefijo V2. Además, agrega los endpoints `last` y `:id` con respuestas enriquecidas, metadatos de versión y trazabilidad.
+
+Por tanto, cada entidad conserva en V2 los endpoints de la V1:
+
+| Método | Endpoint V2 | Descripción |
+|---|---|---|
+| `POST` | `/api/v2/users`, `/api/v2/books`, `/api/v2/loans` | Crear un recurso |
+| `GET` | `/api/v2/users`, `/api/v2/books`, `/api/v2/loans` | Obtener la colección |
+| `PUT` | `/api/v2/users/:id`, `/api/v2/books/:id`, `/api/v2/loans/:id` | Actualizar un recurso completo |
+| `PATCH` | `/api/v2/users/:id`, `/api/v2/books/:id`, `/api/v2/loans/:id` | Actualizar parcialmente un recurso |
+| `DELETE` | `/api/v2/users/:id`, `/api/v2/books/:id`, `/api/v2/loans/:id` | Eliminar un recurso |
+| `QUERY` | `/api/v2/users`, `/api/v2/books`, `/api/v2/loans` | Consultar por criterios |
+
+Además, para cada entidad V2 agrega:
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/v2/users/last` | Obtiene el usuario creado más recientemente |
+| `GET` | `/api/v2/users/:id` | Obtiene un usuario por ID junto con un Pokémon y un doctor externos |
+| `GET` | `/api/v2/books/last` | Obtiene el libro creado más recientemente |
+| `GET` | `/api/v2/books/:id` | Obtiene un libro por ID junto con un Pokémon y un doctor externos |
+| `GET` | `/api/v2/loans/last` | Obtiene el préstamo creado más recientemente |
+| `GET` | `/api/v2/loans/:id` | Obtiene un préstamo por ID junto con un Pokémon y un doctor externos |
+
+Los endpoints `GET /api/v2/:entity/:id` construyen una respuesta con la entidad solicitada, los datos de Pokémon y doctor, y metadatos de trazabilidad. Antes de responder, la API envía el artefacto completo a `POST /artifacts` del microservicio Object Storage. El nombre del blob sigue el formato `entity/id-traceId.json`. Si Object Storage no está disponible, la API registra el error y conserva la respuesta de negocio.
+
+Los endpoints `GET /api/v2/:entity/last` devuelven el registro más reciente con los metadatos V2. En la implementación actual no envían un artefacto al Object Storage.
+
+Ejemplos:
+
+```text
+GET /api/v2/users/last
+GET /api/v2/users/1
+GET /api/v2/books/last
+GET /api/v2/books/1
+GET /api/v2/loans/last
+GET /api/v2/loans/1
+```
+
+Las respuestas V2 incluyen, cuando están disponibles, `api`, `version`, `x-trace_id`, `trace-id` y `span-id`. Los endpoints `last` devuelven el registro más reciente y los endpoints por ID agregan un Pokémon y un doctor obtenidos de servicios externos. Estos últimos pueden responder `404` si la entidad no existe o `500` si falla la consulta de datos externos.
 
 
 # Users
@@ -497,8 +593,29 @@ PostgreSQL
 biblio-express/
 ├── .github/
 │   └── workflows/
-│       ├── production.yml
-│       └── testing.yml
+│       ├── api.yml
+│       └── object-storage.yml
+├── k8s/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── hpa.yaml
+│   ├── ingress.yaml
+│   ├── namespace.yaml
+│   ├── object-storage-configmap.yaml
+│   ├── object-storage-deployment.yaml
+│   ├── object-storage-service-account.yaml
+│   ├── object-storage-service.yaml
+│   ├── secret-provider-class.example.yaml
+│   ├── secret-provider-class.yaml
+│   ├── secret.yaml
+│   ├── service-account.yaml
+│   └── service.yaml
+├── object-storage/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── package.json
+│   └── server.js
 ├── prisma/
 │   ├── migrations/
 │   └── schema.prisma
@@ -524,7 +641,8 @@ biblio-express/
 │   │       ├── user.schema.js
 │   │       └── user.service.js
 │   ├── routes/
-│   │   └── api.routes.js
+│   │   ├── api.routes.js
+│   │   └── api.v2.routes.js
 │   └── app.js
 ├── tests/
 │   ├── books/
@@ -583,70 +701,20 @@ El Dockerfile instala las dependencias y ejecuta `prisma generate` durante la co
 
 # CI/CD
 
-GitHub Actions automatiza pruebas, cobertura, construcción de Docker y despliegue.
+GitHub Actions automatiza la construcción, publicación y despliegue de cada componente en Azure.
 
-## Testing
+## API
 
-Workflow:
+Workflow: `.github/workflows/api.yml`.
 
-```text
-.github/workflows/testing.yml
-```
+Se ejecuta con cambios en la API, Prisma, Docker o sus manifiestos Kubernetes, además de permitir ejecución manual. Publica `biblio-express` en Azure Container Registry, aplica los manifiestos de `k8s/` y espera el rollout de `biblio-api-v2` en AKS.
 
-Se ejecuta con `push` sobre la rama `testing` y realiza:
+## Object Storage
 
-1. Checkout del repositorio.
-2. Configuración de Node.js 24 y pnpm.
-3. Instalación con `pnpm install --frozen-lockfile`.
-4. Pruebas con cobertura.
-5. Construcción de la imagen Docker.
-6. Deploy mediante Render Deploy Hook de Testing.
+Workflow: `.github/workflows/object-storage.yml`.
 
-## Production
+Se ejecuta con cambios en `object-storage/` o en sus manifiestos Kubernetes, además de permitir ejecución manual. Publica `biblio-object-storage` en Azure Container Registry y actualiza su Deployment en AKS.
 
-Workflow:
+Ambos workflows usan `sha-<commit>` para cambios en `main` y tags SemVer específicos por componente (`api-vMAJOR.MINOR.PATCH` u `object-storage-vMAJOR.MINOR.PATCH`). Requieren el secreto `AZURE_CREDENTIALS`.
 
-```text
-.github/workflows/production.yml
-```
-
-Se ejecuta con `push` sobre `main` y realiza los mismos pasos utilizando el ambiente Production.
-
-# Ambientes
-
-| Ambiente | Rama | Deploy |
-|---|---|---|
-| Testing | `testing` | Render Testing |
-| Production | `main` | Render Production |
-
-Los ambientes deben mantenerse independientes mediante diferentes URLs, bases de datos, variables y secrets.
-
-# Coverage
-
-Production ejecuta:
-
-```text
-COVERAGE_THRESHOLD=85
-```
-
-Testing ejecuta:
-
-```text
-COVERAGE_THRESHOLD=60
-```
-
-# GitHub Actions Secrets
-
-Production utiliza:
-
-```text
-RENDER_DEPLOY_HOOK_PRODUCTION
-```
-
-Testing utiliza:
-
-```text
-RENDER_DEPLOY_HOOK_TESTING
-```
-
-Los secrets deben configurarse en GitHub y no escribirse directamente en los workflows.
+Las credenciales deben configurarse en GitHub y no escribirse en los workflows ni en los manifiestos.
