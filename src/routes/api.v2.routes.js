@@ -9,4 +9,10 @@ router.use('/users', userV2Routes);
 router.use('/books', bookV2Routes);
 router.use('/loans', loanV2Routes);
 
+router.get('/test-error', (req, res) => {
+  return res.status(500).json({
+    message: 'Error interno de prueba'
+  });
+});
+
 export default router;
