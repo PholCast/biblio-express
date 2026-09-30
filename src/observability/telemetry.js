@@ -21,6 +21,8 @@ const sdk = new NodeSDK({
     getNodeAutoInstrumentations({
       '@opentelemetry/instrumentation-http': {
         enabled: true,
+        ignoreIncomingRequestHook: (request) =>
+            request.url?.split('?')[0] === '/health',
         applyCustomAttributesOnSpan: (span, request) => {
           const route = request.route?.path;
 
