@@ -35,6 +35,45 @@ const uploadFlowArtifact = async (artifact) => {
   return response.json();
 };
 
+const sendArtifactResponse = async ({
+  req,
+  res,
+  entity,
+  id,
+  body,
+  statusCode,
+  version,
+  responseBody,
+}) => {
+  const traceId = req.traceId;
+  const span = trace.getActiveSpan();
+  const spanContext = span?.spanContext();
+
+  try {
+    await uploadFlowArtifact({
+      version,
+      entity,
+      id,
+      traceId,
+      otelTraceId: spanContext?.traceId,
+      spanId: spanContext?.spanId,
+      traceparent: req.headers['traceparent'],
+      request: {
+        method: req.method,
+        path: req.originalUrl,
+        'x-trace-id': traceId,
+      },
+      response: {
+        statusCode,
+        body,
+      },
+    });
+  } catch (error) {
+    console.error('Blob Storage error:', error);
+  }
+
+  return res.status(statusCode).json(responseBody);
+};
 
 export const sendResponseWithArtifact = async ({
   req,
@@ -76,4 +115,24 @@ export const sendResponseWithArtifact = async ({
   }
 
   return res.status(statusCode).json(responseBody);
+};
+
+export const sendResponseWithArtifactV3 = async ({
+  req,
+  res,
+  entity,
+  id,
+  body,
+  statusCode = 200,
+}) => {
+  return sendArtifactResponse({
+    req,
+    res,
+    entity,
+    id,
+    body,
+    statusCode,
+    version: 'v3',
+    responseBody: body,
+  });
 };
