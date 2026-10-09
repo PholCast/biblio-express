@@ -9,6 +9,7 @@ export const uploadArtifact = async (req, res) => {
       otelTraceId,
       spanId,
       traceparent,
+      version,
       request,
       response,
     } = req.body;
@@ -26,6 +27,7 @@ export const uploadArtifact = async (req, res) => {
       otelTraceId,
       spanId,
       traceparent,
+      version,
       request,
       response,
     });
