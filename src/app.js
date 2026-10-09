@@ -1,6 +1,7 @@
 import express from 'express';
 import apiRoutes from './routes/api.routes.js';
 import apiV2Routes from './routes/api.v2.routes.js';
+import apiV3Routes from './routes/api.v3.routes.js';
 import { requestLogger } from './observability/request-logger.js';
 import { traceContext } from './observability/trace-context.js';
 
@@ -19,5 +20,7 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 
 app.use('/api/v2', apiV2Routes);
+
+app.use('/api/v3', apiV3Routes);
 
 export default app;
