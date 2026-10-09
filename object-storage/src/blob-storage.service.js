@@ -43,6 +43,7 @@ export const uploadJson = async (blobName, data) => {
 };
 
 export const uploadFlowArtifact = async ({
+  version,
   entity,
   id,
   traceId,
@@ -53,6 +54,7 @@ export const uploadFlowArtifact = async ({
   response,
 }) => {
   const data = {
+    ...(version && { version }),
     'x-trace-id': traceId,
     otelTraceId,
     spanId,
@@ -62,7 +64,8 @@ export const uploadFlowArtifact = async ({
     response,
   };
 
-  const blobName = `${entity}/${id}-${traceId}.json`;
+  const prefix = version ? `${version}/` : '';
+  const blobName = `${prefix}${entity}/${id}-${traceId}.json`;
 
   return uploadJson(blobName, data);
 };
