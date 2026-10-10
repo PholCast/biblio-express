@@ -4,7 +4,8 @@ import { trace } from '@opentelemetry/api';
 const logger = logs.getLogger('biblio-api-azure');
 
 export const requestLogger = (req, res, next) => {
-  if (!req.originalUrl.startsWith('/api/v2')) {
+  if (!req.originalUrl.startsWith('/api/v2') && 
+      !req.originalUrl.startsWith('/api/v3')) {
     return next();
   }
 
