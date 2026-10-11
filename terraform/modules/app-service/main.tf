@@ -17,6 +17,7 @@ resource "azurerm_linux_web_app" "this" {
     health_check_eviction_time_in_min             = 5
     container_registry_use_managed_identity       = true
     container_registry_managed_identity_client_id = var.managed_identity_client_id
+    app_command_line                              = var.app_command_line
     application_stack {
       docker_image_name   = "${var.image_repository}:${var.image_tag}"
       docker_registry_url = "https://${var.registry_login_server}"
