@@ -1,0 +1,168 @@
+name: Terraform - Azure App Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "src/**"
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "server.js"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "Dockerfile"
+      - "object-storage/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Acción de la sustentación"
+        required: true
+        type: choice
+        default: destroy-and-deploy
+        options:
+          - destroy-and-deploy
+          - deploy-only
+          - destroy
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_subscription_id: ${{ secrets.TF_VAR_SUBSCRIPTION_ID }}
+  TF_VAR_tenant_id: ${{ secrets.TF_VAR_TENANT_ID }}
+  TF_VAR_postgres_admin_password: ${{ secrets.TF_VAR_POSTGRES_ADMIN_PASSWORD }}
+
+jobs:
+  destroy:
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'destroy' || inputs.operation == 'destroy-and-deploy') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Preflight
+        shell: pwsh
+        working-directory: terraform
+        run: |
+          .\preflight.ps1 `
+            -SubscriptionId "${{ secrets.TF_VAR_SUBSCRIPTION_ID }}" `
+            -TenantId "${{ secrets.TF_VAR_TENANT_ID }}" `
+            -BackendResourceGroup "${{ secrets.TF_STATE_RESOURCE_GROUP }}" `
+            -BackendStorageAccount "${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" `
+            -BackendContainer "${{ secrets.TF_STATE_CONTAINER }}" `
+            -BackendKey "${{ secrets.TF_STATE_KEY }}"
+      - name: Initialize remote state
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}"
+      - name: Destroy infrastructure
+        run: |
+          terraform destroy -auto-approve -var-file=terraform.tfvars.example \
+            -var="subscription_id=${TF_VAR_subscription_id}" \
+            -var="tenant_id=${TF_VAR_tenant_id}" \
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+
+  deploy:
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.operation != 'destroy') && (needs.destroy.result == 'success' || needs.destroy.result == 'skipped') }}
+    needs: destroy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Preflight
+        shell: pwsh
+        working-directory: terraform
+        run: |
+          .\preflight.ps1 `
+            -SubscriptionId "${{ secrets.TF_VAR_SUBSCRIPTION_ID }}" `
+            -TenantId "${{ secrets.TF_VAR_TENANT_ID }}" `
+            -BackendResourceGroup "${{ secrets.TF_STATE_RESOURCE_GROUP }}" `
+            -BackendStorageAccount "${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" `
+            -BackendContainer "${{ secrets.TF_STATE_CONTAINER }}" `
+            -BackendKey "${{ secrets.TF_STATE_KEY }}" `
+            -RequireDocker
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}"
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Create registry infrastructure
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars.example \
+            -target=module.resource_group \
+            -target=module.container_registry \
+            -target=module.app_service_plan \
+            -var="subscription_id=${TF_VAR_subscription_id}" \
+            -var="tenant_id=${TF_VAR_tenant_id}" \
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+
+      - name: Select image tag
+        id: image
+        working-directory: .
+        run: echo "tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API image
+        working-directory: .
+        run: |
+          acr=$(terraform -chdir=terraform output -raw container_registry_login_server)
+          az acr login --name "${acr%%.*}"
+          docker build -t "$acr/biblio-express:${{ steps.image.outputs.tag }}" .
+          docker push "$acr/biblio-express:${{ steps.image.outputs.tag }}"
+
+      - name: Build and push Object Storage image
+        working-directory: .
+        run: |
+          acr=$(terraform -chdir=terraform output -raw container_registry_login_server)
+          docker build -t "$acr/biblio-object-storage:${{ steps.image.outputs.tag }}" object-storage
+          docker push "$acr/biblio-object-storage:${{ steps.image.outputs.tag }}"
+
+      - name: Deploy complete infrastructure
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars.example \
+            -var="api_image_tag=${{ steps.image.outputs.tag }}" \
+            -var="object_storage_image_tag=${{ steps.image.outputs.tag }}" \
+            -var="subscription_id=${TF_VAR_subscription_id}" \
+            -var="tenant_id=${TF_VAR_tenant_id}" \
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+
+      - name: Verify application health
+        working-directory: .
+        run: |
+          api_url=$(terraform -chdir=terraform output -raw api_url)
+          storage_url=$(terraform -chdir=terraform output -raw object_storage_url)
+          curl --fail --retry 12 --retry-delay 10 "$api_url/health"
+          curl --fail --retry 12 --retry-delay 10 "$storage_url/health"
