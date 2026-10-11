@@ -1,0 +1,10 @@
+subscription_id         = "00000000-0000-0000-0000-000000000000"
+tenant_id               = "00000000-0000-0000-0000-000000000000"
+location                = "East US"
+project_name            = "biblio"
+environment             = "dev"
+postgres_admin_username = "biblioadmin"
+postgres_admin_password = "replace-with-a-strong-password"
+
+external_doctors_api_url = ""
+external_pokemon_api_url = ""
