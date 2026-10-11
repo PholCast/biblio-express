@@ -25,7 +25,6 @@ resource "azurerm_linux_web_app" "this" {
 
   app_settings = merge(var.app_settings, {
     WEBSITES_PORT                       = tostring(var.port)
-    DOCKER_REGISTRY_SERVER_URL          = "https://${var.registry_login_server}"
     WEBSITES_CONTAINER_START_TIME_LIMIT = "1800"
   })
 }
