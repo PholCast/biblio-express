@@ -18,4 +18,4 @@ COPY server.js ./
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && exec pnpm start"]

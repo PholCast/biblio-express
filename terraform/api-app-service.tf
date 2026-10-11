@@ -10,7 +10,6 @@ module "api_app_service" {
   image_repository           = var.api_image_repository
   image_tag                  = var.api_image_tag
   port                       = 3000
-  app_command_line           = "pnpm exec prisma migrate deploy && pnpm start"
   app_settings = {
     NODE_ENV                  = var.environment
     PORT                      = "3000"

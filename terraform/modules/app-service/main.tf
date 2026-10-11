@@ -1,10 +1,11 @@
 resource "azurerm_linux_web_app" "this" {
-  name                = "app-${var.name_prefix}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  service_plan_id     = var.service_plan_id
-  https_only          = true
-  tags                = var.tags
+  name                            = "app-${var.name_prefix}"
+  resource_group_name             = var.resource_group_name
+  location                        = var.location
+  service_plan_id                 = var.service_plan_id
+  https_only                      = true
+  key_vault_reference_identity_id = var.managed_identity_id
+  tags                            = var.tags
 
   identity {
     type         = "UserAssigned"
