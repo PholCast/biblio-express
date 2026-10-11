@@ -3,7 +3,7 @@ param(
   [string]$SubscriptionId,
   [string]$ResourceGroupName = "rg-biblio-tfstate",
   [string]$StorageAccountName = "stbibliotfstate",
-  [string]$Location = "East US",
+  [string]$Location = "Central US",
   [string]$ContainerName = "tfstate"
 )
 

@@ -43,7 +43,7 @@ variable "environment" {
 variable "location" {
   description = "Región de Azure."
   type        = string
-  default     = "East US"
+  default     = "Central US"
 
   validation {
     condition     = length(trimspace(var.location)) > 0
