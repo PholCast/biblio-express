@@ -33,7 +33,7 @@ variable "portal_principal_id" {
 variable "project_name" {
   description = "Prefijo común para nombres de recursos Azure."
   type        = string
-  default     = "biblio"
+  default     = "biblio-express"
 
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{2,19}$", var.project_name))

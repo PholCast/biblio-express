@@ -70,11 +70,7 @@ jobs:
             -backend-config="key=${{ secrets.TF_STATE_KEY }}"
       - name: Destroy infrastructure
         run: |
-          terraform destroy -auto-approve -var-file=terraform.tfvars.example \
-            -var="subscription_id=${TF_VAR_subscription_id}" \
-            -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
-            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
+          terraform destroy -auto-approve
 
   deploy:
     if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.operation != 'destroy') && (needs.destroy.result == 'success' || needs.destroy.result == 'skipped') }}
@@ -124,14 +120,10 @@ jobs:
 
       - name: Create registry infrastructure
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars.example \
+          terraform apply -auto-approve \
             -target=module.resource_group \
             -target=module.container_registry \
-            -target=module.app_service_plan \
-            -var="subscription_id=${TF_VAR_subscription_id}" \
-            -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
-            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
+            -target=module.app_service_plan
 
       - name: Select image tag
         id: image
@@ -155,13 +147,9 @@ jobs:
 
       - name: Deploy complete infrastructure
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars.example \
+          terraform apply -auto-approve \
             -var="api_image_tag=${{ steps.image.outputs.tag }}" \
-            -var="object_storage_image_tag=${{ steps.image.outputs.tag }}" \
-            -var="subscription_id=${TF_VAR_subscription_id}" \
-            -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
-            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
+            -var="object_storage_image_tag=${{ steps.image.outputs.tag }}"
 
       - name: Verify application health
         working-directory: .
