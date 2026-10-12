@@ -12,8 +12,4 @@ variable "image_repository" { type = string }
 variable "image_tag" { type = string }
 variable "port" { type = number }
 variable "app_settings" { type = map(string) }
-variable "app_command_line" {
-  type    = string
-  default = null
-}
 variable "tags" { type = map(string) }
