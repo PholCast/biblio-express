@@ -53,14 +53,22 @@ export const uploadFlowArtifact = async ({
   request,
   response,
 }) => {
+  const artifactRequest =
+    version === 'v2'
+      ? request
+      : (({ 'x-trace-id': _traceId, ...requestWithoutTraceId }) =>
+          requestWithoutTraceId)(request);
+
   const data = {
     ...(version && { version }),
-    'x-trace-id': traceId,
-    otelTraceId,
-    spanId,
-    traceparent,
+    ...(version === 'v2' && {
+      'x-trace-id': traceId,
+      otelTraceId,
+      spanId,
+      traceparent,
+    }),
     timestamp: new Date().toISOString(),
-    request,
+    request: artifactRequest,
     response,
   };
 
