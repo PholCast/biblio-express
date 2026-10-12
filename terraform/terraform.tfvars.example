@@ -1,5 +1,6 @@
 subscription_id         = "00000000-0000-0000-0000-000000000000"
 tenant_id               = "00000000-0000-0000-0000-000000000000"
+portal_principal_id          = null
 location                = "Central US"
 project_name            = "biblio-express"
 environment             = "dev"

@@ -15,3 +15,17 @@ resource "azurerm_role_assignment" "key_vault_secrets_user" {
   role_definition_name = "Key Vault Secrets User"
   principal_id         = var.principal_id
 }
+
+resource "azurerm_role_assignment" "storage_portal_contributor" {
+  count                = var.portal_principal_id == null ? 0 : 1
+  scope                = var.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.portal_principal_id
+}
+
+resource "azurerm_role_assignment" "key_vault_portal_secrets_user" {
+  count                = var.portal_principal_id == null ? 0 : 1
+  scope                = var.key_vault_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = var.portal_principal_id
+}

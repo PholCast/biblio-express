@@ -18,6 +18,18 @@ variable "tenant_id" {
   }
 }
 
+variable "portal_principal_id" {
+  description = "Microsoft Entra object ID of the user who must access protected data in the Azure portal."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.portal_principal_id == null || can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.portal_principal_id))
+    error_message = "portal_principal_id must be a valid Microsoft Entra object ID when provided."
+  }
+}
+
 variable "project_name" {
   description = "Prefijo común para nombres de recursos Azure."
   type        = string

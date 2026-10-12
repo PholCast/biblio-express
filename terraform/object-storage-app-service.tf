@@ -13,6 +13,7 @@ module "object_storage_app_service" {
   app_settings = {
     NODE_ENV                     = var.environment
     PORT                         = "3001"
+    AZURE_CLIENT_ID              = module.managed_identity.client_id
     AZURE_STORAGE_ACCOUNT_NAME   = module.storage_account.name
     AZURE_STORAGE_CONTAINER_NAME = module.blob_container.name
   }

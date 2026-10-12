@@ -35,6 +35,7 @@ env:
   TF_VAR_subscription_id: ${{ secrets.TF_VAR_SUBSCRIPTION_ID }}
   TF_VAR_tenant_id: ${{ secrets.TF_VAR_TENANT_ID }}
   TF_VAR_postgres_admin_password: ${{ secrets.TF_VAR_POSTGRES_ADMIN_PASSWORD }}
+  TF_VAR_portal_principal_id: ${{ secrets.TF_VAR_PORTAL_PRINCIPAL_ID }}
 
 jobs:
   destroy:
@@ -72,7 +73,8 @@ jobs:
           terraform destroy -auto-approve -var-file=terraform.tfvars.example \
             -var="subscription_id=${TF_VAR_subscription_id}" \
             -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
+            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
 
   deploy:
     if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.operation != 'destroy') && (needs.destroy.result == 'success' || needs.destroy.result == 'skipped') }}
@@ -128,7 +130,8 @@ jobs:
             -target=module.app_service_plan \
             -var="subscription_id=${TF_VAR_subscription_id}" \
             -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
+            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
 
       - name: Select image tag
         id: image
@@ -157,7 +160,8 @@ jobs:
             -var="object_storage_image_tag=${{ steps.image.outputs.tag }}" \
             -var="subscription_id=${TF_VAR_subscription_id}" \
             -var="tenant_id=${TF_VAR_tenant_id}" \
-            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}"
+            -var="postgres_admin_password=${TF_VAR_postgres_admin_password}" \
+            -var="portal_principal_id=${TF_VAR_portal_principal_id}"
 
       - name: Verify application health
         working-directory: .
