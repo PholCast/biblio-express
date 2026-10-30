@@ -85,8 +85,48 @@ export const evaluateCanary = (snapshot, slo) => {
     return pause('Insufficient request volume for a decision');
   }
 
+  const stable5xxRate = stable.errors5xx / stable.requests;
+  const canary5xxRate = canary.errors5xx / canary.requests;
+
+  // Primero comprobar los límites absolutos del canary.
+  if (
+    canary5xxRate > slo.max5xxRate ||
+    canary.p95LatencyMs > slo.maxP95LatencyMs
+  ) {
+    return abort(
+      'Canary violates an absolute error or latency threshold',
+    );
+  }
+
+  // Después comprobar si la versión estable sirve como baseline.
+  if (
+    stable5xxRate > slo.max5xxRate ||
+    stable.p95LatencyMs > slo.maxP95LatencyMs
+  ) {
+    return pause(
+      'Stable baseline is unhealthy; comparison is inconclusive',
+    );
+  }
+  const maxAllowedP95 =
+    stable.p95LatencyMs *
+    (1 + slo.maxP95RegressionPercent / 100);
+
+  if (canary.p95LatencyMs > maxAllowedP95) {
+    return abort(
+      'Canary p95 latency regressed beyond the allowed baseline',
+    );
+  }
+
   return {
-    decision: 'pause',
-    reason: 'Input validation passed; canary evaluation is pending',
+    decision: 'promote',
+    reason: 'SLO thresholds passed with sufficient comparable traffic',
+    metrics: {
+      stable5xxRate,
+      canary5xxRate,
+      stableP95LatencyMs: stable.p95LatencyMs,
+      canaryP95LatencyMs: canary.p95LatencyMs,
+      stableRequests: stable.requests,
+      canaryRequests: canary.requests,
+    },
   };
 };
