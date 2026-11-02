@@ -1,0 +1,182 @@
+name: GCP Canary Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      canary_percent:
+        description: "Porcentaje de tráfico para canary"
+        required: true
+        type: choice
+        default: "0"
+        options:
+          - "0"
+          - "10"
+          - "25"
+          - "50"
+          - "100"
+      canary_faults_enabled:
+        description: "Habilitar inyección controlada de fallos en canary"
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "server.js"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "Dockerfile"
+      - ".github/workflows/gcp-canary.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: biblio-express-canary-2026
+  REGION: us-central1
+  REPOSITORY: biblio-api
+  IMAGE_NAME: biblio-api
+  TF_ROOT: canary-source/terraform-gcp
+  TF_STATE_BUCKET: biblio-express-tfstate-2026-pholcast
+  TF_STATE_PREFIX: biblio-express
+  STABLE_VERSION: 3.0.1
+  CANARY_VERSION: 4.0.0
+
+jobs:
+  deploy:
+    name: Build, deploy and route traffic
+    runs-on: ubuntu-latest
+    env:
+      CANARY_PERCENT: ${{ inputs.canary_percent || '0' }}
+      CANARY_FAULTS_ENABLED: ${{ inputs.canary_faults_enabled || false }}
+
+    steps:
+      - name: Checkout canary source
+        uses: actions/checkout@v4
+        with:
+          path: canary-source
+
+      - name: Checkout stable v3 source
+        uses: actions/checkout@v4
+        with:
+          ref: v3.0.1
+          path: stable-source
+          fetch-depth: 1
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Create ephemeral Terraform variables
+        working-directory: ${{ env.TF_ROOT }}
+        env:
+          CANARY_FAULT_TOKEN: ${{ secrets.CANARY_FAULT_TOKEN }}
+          OTEL_EXPORTER_ENDPOINT: ${{ secrets.OTEL_EXPORTER_ENDPOINT }}
+          OTEL_EXPORTER_HEADERS: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+          NOTIFICATION_EMAIL: ${{ secrets.GCP_NOTIFICATION_EMAIL }}
+        run: |
+          cat > terraform.tfvars <<EOF
+          project_id = "${PROJECT_ID}"
+          create_project = false
+          project_name = "Biblio Express Canary"
+          region = "${REGION}"
+          zone = "us-central1-a"
+          environment = "demo"
+          service_name = "biblio-express"
+          artifact_repository_id = "${REPOSITORY}"
+          stable_version = "${STABLE_VERSION}"
+          canary_version = "${CANARY_VERSION}"
+          cloud_sql_database = "bibliodb"
+          cloud_sql_user = "biblioapp"
+          cloud_sql_tier = "db-f1-micro"
+          canary_fault_token = "${CANARY_FAULT_TOKEN}"
+          canary_fault_latency_ms = 2000
+          otel_exporter_endpoint = "${OTEL_EXPORTER_ENDPOINT}"
+          otel_exporter_headers = "${OTEL_EXPORTER_HEADERS}"
+          otel_exporter_otlp_protocol = "http/protobuf"
+          github_repository = "${GITHUB_REPOSITORY}"
+          github_branch = "main"
+          notification_email = "${NOTIFICATION_EMAIL}"
+          deletion_protection = false
+          EOF
+
+      - name: Initialize Terraform backend
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=${TF_STATE_PREFIX}"
+
+      - name: Build and push stable v3 image
+        working-directory: stable-source
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:v${STABLE_VERSION}"
+          docker build --pull -t "$image" .
+          docker push "$image"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image")
+          echo "STABLE_IMAGE=$digest" >> "$GITHUB_ENV"
+
+      - name: Build and push canary v4 image
+        working-directory: canary-source
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:v${CANARY_VERSION}-${GITHUB_SHA::12}"
+          docker build --pull -t "$image" .
+          docker push "$image"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image")
+          echo "CANARY_IMAGE=$digest" >> "$GITHUB_ENV"
+
+      - name: Validate immutable image references
+        run: |
+          case "$STABLE_IMAGE" in *"@sha256:"*) ;; *) echo "Stable image has no digest"; exit 1 ;; esac
+          case "$CANARY_IMAGE" in *"@sha256:"*) ;; *) echo "Canary image has no digest"; exit 1 ;; esac
+          echo "Stable: $STABLE_IMAGE"
+          echo "Canary: $CANARY_IMAGE"
+
+      - name: Calculate traffic split
+        run: |
+          stable_percent=$((100 - CANARY_PERCENT))
+          echo "STABLE_PERCENT=$stable_percent" >> "$GITHUB_ENV"
+
+      - name: Plan infrastructure and traffic
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform plan -input=false \
+            -var-file=terraform.tfvars \
+            -var="stable_image=${STABLE_IMAGE}" \
+            -var="canary_image=${CANARY_IMAGE}" \
+            -var="stable_traffic_percent=${STABLE_PERCENT}" \
+            -var="canary_traffic_percent=${CANARY_PERCENT}" \
+            -var="canary_faults_enabled=${CANARY_FAULTS_ENABLED}"
+
+      - name: Apply infrastructure and traffic
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="stable_image=${STABLE_IMAGE}" \
+            -var="canary_image=${CANARY_IMAGE}" \
+            -var="stable_traffic_percent=${STABLE_PERCENT}" \
+            -var="canary_traffic_percent=${CANARY_PERCENT}" \
+            -var="canary_faults_enabled=${CANARY_FAULTS_ENABLED}"
+
+      - name: Show deployment outputs
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform output
