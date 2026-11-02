@@ -10,10 +10,16 @@ on:
         default: "0"
         options:
           - "0"
+          - "5"
           - "10"
           - "25"
           - "50"
           - "100"
+      bake_time_seconds:
+        description: "Tiempo de horneado de esta etapa (segundos)"
+        required: true
+        type: number
+        default: 300
       canary_faults_enabled:
         description: "Habilitar inyección controlada de fallos en canary"
         required: true
@@ -59,6 +65,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           COMMIT_SHA: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
           WORKFLOW_FILE: gcp-infrastructure.yml
         run: |
           set -euo pipefail
@@ -71,6 +78,7 @@ jobs:
           run_id=""
           for attempt in {1..12}; do
             runs=$(gh run list \
+              --repo "$REPOSITORY" \
               --workflow "$WORKFLOW_FILE" \
               --branch main \
               --limit 30 \
@@ -97,7 +105,7 @@ jobs:
 
           echo "Waiting for infrastructure run $run_id."
           while true; do
-            run=$(gh run view "$run_id" --json status,conclusion)
+            run=$(gh run view "$run_id" --repo "$REPOSITORY" --json status,conclusion)
             status=$(jq -r '.status' <<< "$run")
             conclusion=$(jq -r '.conclusion // empty' <<< "$run")
 
@@ -127,6 +135,7 @@ jobs:
     env:
       CANARY_PERCENT: ${{ inputs.canary_percent || '0' }}
       CANARY_FAULTS_ENABLED: ${{ inputs.canary_faults_enabled || false }}
+      BAKE_TIME_SECONDS: ${{ inputs.bake_time_seconds || '300' }}
 
     steps:
       - name: Checkout canary source
@@ -247,6 +256,42 @@ jobs:
             -var="stable_traffic_percent=${STABLE_PERCENT}" \
             -var="canary_traffic_percent=${CANARY_PERCENT}" \
             -var="canary_faults_enabled=${CANARY_FAULTS_ENABLED}"
+
+      - name: Smoke test canary at 0% public traffic
+        if: env.CANARY_PERCENT == '0'
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          canary_url=$(terraform output -raw canary_service_url)
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+
+          for attempt in {1..12}; do
+            status=$(curl --silent --show-error \
+              --retry 2 \
+              -H "x-canary: true" \
+              -D "$response_file" \
+              -o /dev/null \
+              -w "%{http_code}" \
+              "${canary_url}/api/v4/books" || true)
+              track=$(awk 'BEGIN { IGNORECASE=1 } /^x-app-track:/ { print $2 }' "$response_file" | tr -d '\r')
+              if [ "$status" -ge 200 ] && [ "$status" -lt 500 ] && [ "$track" = "canary" ]; then
+                echo "Canary smoke test passed with x-canary: true (HTTP ${status})."
+                exit 0
+              fi
+            sleep 10
+          done
+
+          echo "Canary smoke test failed or did not return X-App-Track: canary."
+          exit 1
+
+      - name: Bake current traffic stage
+        if: env.BAKE_TIME_SECONDS != '0'
+        run: |
+          case "$BAKE_TIME_SECONDS" in
+            ''|*[!0-9]*) echo "BAKE_TIME_SECONDS must be a non-negative integer"; exit 1 ;;
+          esac
+          echo "Baking ${CANARY_PERCENT}% canary traffic for ${BAKE_TIME_SECONDS} seconds."
+          sleep "$BAKE_TIME_SECONDS"
 
       - name: Show deployment outputs
         working-directory: ${{ env.TF_ROOT }}
