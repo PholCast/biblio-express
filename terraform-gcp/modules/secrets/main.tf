@@ -37,7 +37,7 @@ resource "google_secret_manager_secret" "otel_endpoint" {
 
 resource "google_secret_manager_secret_version" "otel_endpoint" {
   secret      = google_secret_manager_secret.otel_endpoint.id
-  secret_data = var.otel_exporter_endpoint
+  secret_data = var.otel_exporter_endpoint != "" ? var.otel_exporter_endpoint : "disabled"
 }
 
 resource "google_secret_manager_secret" "otel_headers" {
@@ -51,5 +51,5 @@ resource "google_secret_manager_secret" "otel_headers" {
 
 resource "google_secret_manager_secret_version" "otel_headers" {
   secret      = google_secret_manager_secret.otel_headers.id
-  secret_data = var.otel_exporter_headers
+  secret_data = var.otel_exporter_headers != "" ? var.otel_exporter_headers : "disabled"
 }

@@ -12,6 +12,7 @@ resource "google_sql_database_instance" "this" {
 
   settings {
     tier              = var.tier
+    edition           = "ENTERPRISE"
     availability_type = "ZONAL"
     disk_type         = "PD_SSD"
     disk_size         = 10
