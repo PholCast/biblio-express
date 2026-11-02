@@ -1,0 +1,111 @@
+name: GCP Infrastructure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform-gcp/**"
+      - ".github/workflows/gcp-infrastructure.yml"
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_ID: biblio-express-canary-2026
+  REGION: us-central1
+  REPOSITORY: biblio-api
+  TF_ROOT: terraform-gcp
+  TF_STATE_BUCKET: biblio-express-tfstate-2026-pholcast
+  TF_STATE_PREFIX: biblio-express
+  PLACEHOLDER_IMAGE: us-docker.pkg.dev/cloudrun/container/hello
+
+jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_BOOTSTRAP_CREDENTIALS_JSON }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create or verify Terraform state bucket
+        run: |
+          if ! gcloud storage buckets describe "gs://${TF_STATE_BUCKET}" >/dev/null 2>&1; then
+            gcloud storage buckets create "gs://${TF_STATE_BUCKET}" \
+              --project="${PROJECT_ID}" \
+              --location="${REGION}" \
+              --uniform-bucket-level-access
+          fi
+          gcloud storage buckets update "gs://${TF_STATE_BUCKET}" --versioning
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Create infrastructure variables
+        working-directory: ${{ env.TF_ROOT }}
+        env:
+          CANARY_FAULT_TOKEN: ${{ secrets.CANARY_FAULT_TOKEN }}
+        run: |
+          cat > terraform.tfvars <<EOF
+          project_id = "${PROJECT_ID}"
+          create_project = false
+          project_name = "Biblio Express Canary"
+          region = "${REGION}"
+          zone = "us-central1-a"
+          environment = "demo"
+          service_name = "biblio-express"
+          artifact_repository_id = "${REPOSITORY}"
+          stable_image = "${PLACEHOLDER_IMAGE}"
+          canary_image = "${PLACEHOLDER_IMAGE}"
+          stable_version = "3.0.1"
+          canary_version = "4.0.0"
+          stable_traffic_percent = 100
+          canary_traffic_percent = 0
+          cloud_sql_database = "bibliodb"
+          cloud_sql_user = "biblioapp"
+          cloud_sql_tier = "db-f1-micro"
+          canary_faults_enabled = false
+          canary_fault_token = "${CANARY_FAULT_TOKEN}"
+          otel_exporter_endpoint = ""
+          otel_exporter_headers = ""
+          github_repository = "${GITHUB_REPOSITORY}"
+          github_branch = "main"
+          notification_email = ""
+          deletion_protection = false
+          EOF
+
+      - name: Initialize Terraform backend
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=${TF_STATE_PREFIX}"
+
+      - name: Validate Terraform
+        working-directory: ${{ env.TF_ROOT }}
+        run: terraform validate
+
+      - name: Create project APIs, registry, database, secrets and IAM
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var-file=terraform.tfvars \
+            -target=module.project \
+            -target=module.artifact_registry \
+            -target=module.cloud_sql \
+            -target=module.secrets \
+            -target=module.iam
+
+      - name: Show bootstrap outputs
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform output github_workload_identity_provider
+          terraform output github_deployer_service_account
