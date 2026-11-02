@@ -38,20 +38,6 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Create or verify Terraform state bucket
-        run: |
-          gcloud services enable \
-            cloudresourcemanager.googleapis.com \
-            serviceusage.googleapis.com \
-            --project="${PROJECT_ID}"
-          if ! gcloud storage buckets describe "gs://${TF_STATE_BUCKET}" >/dev/null 2>&1; then
-            gcloud storage buckets create "gs://${TF_STATE_BUCKET}" \
-              --project="${PROJECT_ID}" \
-              --location="${REGION}" \
-              --uniform-bucket-level-access
-          fi
-          gcloud storage buckets update "gs://${TF_STATE_BUCKET}" --versioning
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
 

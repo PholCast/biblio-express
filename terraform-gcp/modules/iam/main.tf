@@ -25,11 +25,17 @@ resource "google_project_iam_member" "runtime_secrets" {
 resource "google_project_iam_member" "deployer_roles" {
   for_each = toset([
     "roles/run.admin",
-    "roles/artifactregistry.writer",
+    "roles/artifactregistry.admin",
+    "roles/cloudsql.admin",
     "roles/cloudsql.client",
-    "roles/secretmanager.secretAccessor",
+    "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
+    "roles/iam.workloadIdentityPoolAdmin",
     "roles/monitoring.viewer",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/secretmanager.admin",
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/storage.objectAdmin",
   ])
 
   project = var.project_id
