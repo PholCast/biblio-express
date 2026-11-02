@@ -24,6 +24,8 @@ resource "google_project_iam_member" "runtime_secrets" {
 
 resource "google_project_iam_member" "deployer_roles" {
   for_each = toset([
+    "roles/compute.loadBalancerAdmin",
+    "roles/compute.networkAdmin",
     "roles/run.admin",
     "roles/artifactregistry.admin",
     "roles/cloudsql.admin",
@@ -31,6 +33,7 @@ resource "google_project_iam_member" "deployer_roles" {
     "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
     "roles/iam.workloadIdentityPoolAdmin",
+    "roles/monitoring.editor",
     "roles/monitoring.viewer",
     "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.admin",

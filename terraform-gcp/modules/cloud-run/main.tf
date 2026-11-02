@@ -29,10 +29,6 @@ resource "google_cloud_run_v2_service" "this" {
       }
 
       env {
-        name  = "PORT"
-        value = "3000"
-      }
-      env {
         name  = "APP_VERSION"
         value = var.app_version
       }

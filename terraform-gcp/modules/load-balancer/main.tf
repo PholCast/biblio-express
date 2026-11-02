@@ -30,7 +30,6 @@ resource "google_compute_backend_service" "stable" {
   name                  = "${var.name}-stable-backend"
   protocol              = "HTTPS"
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  timeout_sec           = 60
 
   backend {
     group = google_compute_region_network_endpoint_group.stable.id
@@ -42,7 +41,6 @@ resource "google_compute_backend_service" "canary" {
   name                  = "${var.name}-canary-backend"
   protocol              = "HTTPS"
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  timeout_sec           = 60
 
   backend {
     group = google_compute_region_network_endpoint_group.canary.id
