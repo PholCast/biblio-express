@@ -1,0 +1,35 @@
+project_id              = "biblio-express-canary-2026"
+create_project          = false
+project_name            = "Biblio Express Canary"
+billing_account_id      = null
+folder_id               = null
+organization_id         = null
+region                  = "us-central1"
+zone                    = "us-central1-a"
+environment             = "demo"
+service_name            = "biblio-express"
+artifact_repository_id  = "biblio-api"
+
+# Replace these with Artifact Registry image digests produced by CI/CD.
+stable_image = "us-central1-docker.pkg.dev/biblio-express-canary-2026/biblio-api/biblio-api@sha256:REPLACE_STABLE_DIGEST"
+canary_image = "us-central1-docker.pkg.dev/biblio-express-canary-2026/biblio-api/biblio-api@sha256:REPLACE_CANARY_DIGEST"
+
+stable_version         = "3.0.1"
+canary_version         = "4.0.0"
+stable_traffic_percent = 100
+canary_traffic_percent = 0
+
+cloud_sql_database = "bibliodb"
+cloud_sql_user     = "biblioapp"
+cloud_sql_tier     = "db-f1-micro"
+
+canary_faults_enabled = false
+canary_fault_token    = "replace-with-a-long-random-token"
+
+otel_exporter_endpoint = ""
+otel_exporter_headers  = ""
+
+github_repository = "PholCast/biblio-express"
+github_branch     = "main"
+notification_email = ""
+deletion_protection = false
