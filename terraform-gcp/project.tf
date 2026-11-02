@@ -8,6 +8,7 @@ module "project" {
   folder_id       = var.folder_id
   organization_id = var.organization_id
   required_services = [
+    "cloudresourcemanager.googleapis.com",
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
     "sqladmin.googleapis.com",
