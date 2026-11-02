@@ -36,6 +36,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 env:
   PROJECT_ID: biblio-express-canary-2026
@@ -49,9 +50,80 @@ env:
   CANARY_VERSION: 4.0.0
 
 jobs:
+  wait-infrastructure:
+    name: Wait for infrastructure workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for matching infrastructure run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_FILE: gcp-infrastructure.yml
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" != "push" ]; then
+            echo "Manual Canary execution; no matching infrastructure push run is required."
+            exit 0
+          fi
+
+          run_id=""
+          for attempt in {1..12}; do
+            runs=$(gh run list \
+              --workflow "$WORKFLOW_FILE" \
+              --branch main \
+              --limit 30 \
+              --json databaseId,headSha,status,conclusion,event,createdAt)
+
+            run_id=$(jq -r --arg sha "$COMMIT_SHA" '
+              [.[] | select(.headSha == $sha and .event == "push")]
+              | sort_by(.createdAt)
+              | last
+              | .databaseId // empty
+            ' <<< "$runs")
+
+            if [ -n "$run_id" ]; then
+              break
+            fi
+
+            sleep 5
+          done
+
+          if [ -z "$run_id" ]; then
+            echo "No infrastructure run found for commit $COMMIT_SHA; continuing."
+            exit 0
+          fi
+
+          echo "Waiting for infrastructure run $run_id."
+          while true; do
+            run=$(gh run view "$run_id" --json status,conclusion)
+            status=$(jq -r '.status' <<< "$run")
+            conclusion=$(jq -r '.conclusion // empty' <<< "$run")
+
+            case "$status" in
+              completed)
+                if [ "$conclusion" != "success" ]; then
+                  echo "Infrastructure workflow ended with: $conclusion"
+                  exit 1
+                fi
+                echo "Infrastructure workflow completed successfully."
+                exit 0
+                ;;
+              queued|in_progress)
+                sleep 15
+                ;;
+              *)
+                echo "Unexpected infrastructure workflow status: $status"
+                exit 1
+                ;;
+            esac
+          done
+
   deploy:
     name: Build, deploy and route traffic
     runs-on: ubuntu-latest
+    needs: wait-infrastructure
     env:
       CANARY_PERCENT: ${{ inputs.canary_percent || '0' }}
       CANARY_FAULTS_ENABLED: ${{ inputs.canary_faults_enabled || false }}
