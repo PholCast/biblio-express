@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 env:
   PROJECT_ID: biblio-express-canary-2026
@@ -31,7 +32,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_BOOTSTRAP_CREDENTIALS_JSON }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -57,6 +59,8 @@ jobs:
         working-directory: ${{ env.TF_ROOT }}
         env:
           CANARY_FAULT_TOKEN: ${{ secrets.CANARY_FAULT_TOKEN }}
+          OTEL_EXPORTER_ENDPOINT: ${{ secrets.OTEL_EXPORTER_ENDPOINT }}
+          OTEL_EXPORTER_HEADERS: ${{ secrets.OTEL_EXPORTER_HEADERS }}
         run: |
           cat > terraform.tfvars <<EOF
           project_id = "${PROJECT_ID}"
@@ -77,9 +81,11 @@ jobs:
           cloud_sql_user = "biblioapp"
           cloud_sql_tier = "db-f1-micro"
           canary_faults_enabled = false
+          canary_fault_latency_ms = 2000
           canary_fault_token = "${CANARY_FAULT_TOKEN}"
-          otel_exporter_endpoint = ""
-          otel_exporter_headers = ""
+          otel_exporter_endpoint = "${OTEL_EXPORTER_ENDPOINT}"
+          otel_exporter_headers = "${OTEL_EXPORTER_HEADERS}"
+          otel_exporter_otlp_protocol = "http/protobuf"
           github_repository = "${GITHUB_REPOSITORY}"
           github_branch = "main"
           notification_email = ""

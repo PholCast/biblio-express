@@ -124,6 +124,12 @@ variable "canary_faults_enabled" {
   default     = false
 }
 
+variable "canary_fault_latency_ms" {
+  description = "Delay injected by the canary fault mechanism."
+  type        = number
+  default     = 2000
+}
+
 variable "canary_fault_token" {
   description = "Token used to authorize canary fault injection."
   type        = string
@@ -143,6 +149,12 @@ variable "otel_exporter_headers" {
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "otel_exporter_otlp_protocol" {
+  description = "OTLP transport protocol used by the OpenTelemetry exporters."
+  type        = string
+  default     = "http/protobuf"
 }
 
 variable "github_repository" {

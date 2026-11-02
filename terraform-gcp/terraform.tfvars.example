@@ -24,10 +24,12 @@ cloud_sql_user     = "biblioapp"
 cloud_sql_tier     = "db-f1-micro"
 
 canary_faults_enabled = false
+canary_fault_latency_ms = 2000
 canary_fault_token    = "replace-with-a-long-random-token"
 
 otel_exporter_endpoint = ""
 otel_exporter_headers  = ""
+otel_exporter_otlp_protocol = "http/protobuf"
 
 github_repository = "PholCast/biblio-express"
 github_branch     = "main"

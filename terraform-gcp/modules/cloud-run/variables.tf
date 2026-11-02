@@ -22,6 +22,15 @@ variable "app_track" {
   type = string
 }
 
+variable "otel_service_name" {
+  type = string
+}
+
+variable "otel_exporter_otlp_protocol" {
+  type    = string
+  default = "http/protobuf"
+}
+
 variable "execution_service_account" {
   type = string
 }
@@ -49,6 +58,11 @@ variable "otel_headers_secret_id" {
 
 variable "canary_faults_enabled" {
   type = bool
+}
+
+variable "canary_fault_latency_ms" {
+  type    = number
+  default = 2000
 }
 
 variable "labels" {

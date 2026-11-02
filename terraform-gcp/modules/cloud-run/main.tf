@@ -41,8 +41,20 @@ resource "google_cloud_run_v2_service" "this" {
         value = var.app_track
       }
       env {
+        name  = "OTEL_SERVICE_NAME"
+        value = var.otel_service_name
+      }
+      env {
+        name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+        value = var.otel_exporter_otlp_protocol
+      }
+      env {
         name  = "CANARY_FAULTS_ENABLED"
         value = var.canary_faults_enabled ? "true" : "false"
+      }
+      env {
+        name  = "CANARY_FAULT_LATENCY_MS"
+        value = tostring(var.canary_fault_latency_ms)
       }
       env {
         name = "DATABASE_URL"
