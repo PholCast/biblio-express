@@ -14,7 +14,7 @@ artifact_repository_id  = "biblio-api"
 stable_image = "us-central1-docker.pkg.dev/biblio-express-canary-2026/biblio-api/biblio-api@sha256:REPLACE_STABLE_DIGEST"
 canary_image = "us-central1-docker.pkg.dev/biblio-express-canary-2026/biblio-api/biblio-api@sha256:REPLACE_CANARY_DIGEST"
 
-stable_version         = "3.0.1"
+stable_version         = "3.0.2"
 canary_version         = "4.0.0"
 stable_traffic_percent = 100
 canary_traffic_percent = 0

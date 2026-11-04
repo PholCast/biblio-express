@@ -59,7 +59,7 @@ jobs:
           artifact_repository_id = "${REPOSITORY}"
           stable_image = "${PLACEHOLDER_IMAGE}"
           canary_image = "${PLACEHOLDER_IMAGE}"
-          stable_version = "3.0.1"
+          stable_version = "3.0.2"
           canary_version = "4.0.0"
           stable_traffic_percent = 100
           canary_traffic_percent = 0

@@ -79,7 +79,7 @@ variable "canary_image" {
 variable "stable_version" {
   description = "Application version advertised by the stable service."
   type        = string
-  default     = "3.0.1"
+  default     = "3.0.2"
 }
 
 variable "canary_version" {
