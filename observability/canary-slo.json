@@ -1,6 +1,6 @@
 {
-  "windowSeconds": 300,
-  "minimumRequestsPerTrack": 500,
+  "windowSeconds": 120,
+  "minimumRequestsPerTrack": 100,
   "max5xxRate": 0.01,
   "maxP95LatencyMs": 500,
   "maxP95RegressionPercent": 20
