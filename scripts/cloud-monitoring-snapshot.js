@@ -234,3 +234,42 @@ const queryTrack = async (track, service) => {
   };
 };
 
+const stable = await queryTrack('stable', services.stable);
+const canary = await queryTrack('canary', services.canary);
+
+for (const [track, sample] of Object.entries({ stable, canary })) {
+  if (
+    !Number.isFinite(sample.p50LatencyMs) ||
+    !Number.isFinite(sample.p95LatencyMs) ||
+    !Number.isFinite(sample.p99LatencyMs) ||
+    !Number.isFinite(sample.cpuUtilization) ||
+    !Number.isFinite(sample.memoryBytes)
+  ) {
+    throw new Error(`Cloud Monitoring returned incomplete metrics for ${track}.`);
+  }
+}
+
+const snapshot = {
+  stable: {
+    ...stable,
+    windowStart: interval.startTime,
+    windowEnd: interval.endTime,
+  },
+  canary: {
+    ...canary,
+    windowStart: interval.startTime,
+    windowEnd: interval.endTime,
+  },
+  source: {
+    provider: 'google-cloud-monitoring',
+    projectId,
+    windowSeconds,
+    latencyAggregation: 'ALIGN_SUM+REDUCE_SUM',
+    latencyPercentileMethod: 'combined_distribution_linear_interpolation',
+    cpuAggregation: 'ALIGN_SUM+REDUCE_SUM',
+    memoryAggregation: 'ALIGN_SUM+REDUCE_SUM',
+  },
+};
+
+await writeFile(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+console.log(JSON.stringify(snapshot, null, 2));
