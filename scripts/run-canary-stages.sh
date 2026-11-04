@@ -8,6 +8,10 @@ stage_apply() {
   local canary_percent="$1"
   local faults="$2"
   local stable_percent=$((100 - canary_percent))
+  local fault_mode="none"
+  if [ "$faults" = "true" ]; then
+    fault_mode="${CANARY_FAULT_MODE:-none}"
+  fi
 
   if ! terraform apply -input=false -auto-approve \
       -var-file=terraform.tfvars \
@@ -15,7 +19,9 @@ stage_apply() {
       -var="canary_image=${CANARY_IMAGE}" \
       -var="stable_traffic_percent=${stable_percent}" \
       -var="canary_traffic_percent=${canary_percent}" \
-      -var="canary_faults_enabled=${faults}"; then
+      -var="canary_faults_enabled=${faults}" \
+      -var="canary_fault_mode=${fault_mode}" \
+      -var="canary_fault_rate=${CANARY_FAULT_RATE:-25}"; then
     echo "Traffic update failed; attempting rollback."
     rollback
     return 3
@@ -35,7 +41,8 @@ rollback() {
     -var="canary_image=${CANARY_IMAGE}" \
     -var="stable_traffic_percent=100" \
     -var="canary_traffic_percent=0" \
-    -var="canary_faults_enabled=false"; then
+    -var="canary_faults_enabled=false" \
+    -var="canary_fault_mode=none"; then
     TRAFFIC_MODIFIED=false
     ROLLING_BACK=false
     return 0

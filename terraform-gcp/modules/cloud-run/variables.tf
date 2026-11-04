@@ -65,6 +65,16 @@ variable "canary_fault_latency_ms" {
   default = 2000
 }
 
+variable "canary_fault_mode" {
+  type    = string
+  default = "none"
+}
+
+variable "canary_fault_rate" {
+  type    = number
+  default = 25
+}
+
 variable "labels" {
   type    = map(string)
   default = {}

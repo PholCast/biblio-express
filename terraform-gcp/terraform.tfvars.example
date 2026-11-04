@@ -25,6 +25,8 @@ cloud_sql_tier     = "db-f1-micro"
 
 canary_faults_enabled = false
 canary_fault_latency_ms = 2000
+canary_fault_mode       = "none"
+canary_fault_rate       = 25
 canary_fault_token    = "replace-with-a-long-random-token"
 
 otel_exporter_endpoint = ""

@@ -26,11 +26,20 @@ on:
         required: true
         type: number
         default: 300
-      canary_faults_enabled:
-        description: "Habilitar inyección controlada de fallos en canary"
+      canary_fault_mode:
+        description: "Regresión simulada en canary: none, error (HTTP 500) o latency"
         required: true
-        type: boolean
-        default: false
+        type: choice
+        default: "none"
+        options:
+          - none
+          - error
+          - latency
+      canary_fault_rate:
+        description: "Porcentaje de peticiones /api del canary afectadas por el fallo"
+        required: true
+        type: number
+        default: 25
   push:
     branches:
       - main
@@ -141,7 +150,9 @@ jobs:
     env:
       PROMOTION_MODE: ${{ inputs.promotion_mode || 'manual' }}
       DEPLOYMENT_STAGE: ${{ inputs.deployment_stage || '0' }}
-      CANARY_FAULTS_ENABLED: ${{ inputs.canary_faults_enabled || false }}
+      CANARY_FAULT_MODE: ${{ inputs.canary_fault_mode || 'none' }}
+      CANARY_FAULT_RATE: ${{ inputs.canary_fault_rate || '25' }}
+      CANARY_FAULTS_ENABLED: ${{ (inputs.canary_fault_mode || 'none') != 'none' }}
       BAKE_TIME_SECONDS: ${{ inputs.bake_time_seconds || '300' }}
       TARGET_REQUESTS_PER_TRACK: "100"
       LOAD_CONCURRENCY: "20"
@@ -302,6 +313,8 @@ jobs:
           PROMOTION_MODE: ${{ env.PROMOTION_MODE }}
           DEPLOYMENT_STAGE: ${{ env.DEPLOYMENT_STAGE }}
           CANARY_FAULTS_ENABLED: ${{ env.CANARY_FAULTS_ENABLED }}
+          CANARY_FAULT_MODE: ${{ env.CANARY_FAULT_MODE }}
+          CANARY_FAULT_RATE: ${{ env.CANARY_FAULT_RATE }}
           BAKE_TIME_SECONDS: ${{ env.BAKE_TIME_SECONDS }}
           TARGET_REQUESTS_PER_TRACK: ${{ env.TARGET_REQUESTS_PER_TRACK }}
           LOAD_CONCURRENCY: ${{ env.LOAD_CONCURRENCY }}
@@ -343,4 +356,5 @@ jobs:
             -var="canary_image=${CANARY_IMAGE}" \
             -var="stable_traffic_percent=100" \
             -var="canary_traffic_percent=0" \
-            -var="canary_faults_enabled=false"
+            -var="canary_faults_enabled=false" \
+            -var="canary_fault_mode=none"

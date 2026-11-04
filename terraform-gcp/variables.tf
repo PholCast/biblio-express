@@ -130,6 +130,28 @@ variable "canary_fault_latency_ms" {
   default     = 2000
 }
 
+variable "canary_fault_mode" {
+  description = "Header-less canary regression: none, error (HTTP 500) or latency."
+  type        = string
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "error", "latency"], var.canary_fault_mode)
+    error_message = "canary_fault_mode must be none, error or latency."
+  }
+}
+
+variable "canary_fault_rate" {
+  description = "Percentage of canary /api requests affected by canary_fault_mode."
+  type        = number
+  default     = 25
+
+  validation {
+    condition     = var.canary_fault_rate >= 0 && var.canary_fault_rate <= 100
+    error_message = "canary_fault_rate must be between 0 and 100."
+  }
+}
+
 variable "canary_fault_token" {
   description = "Token used to authorize canary fault injection."
   type        = string

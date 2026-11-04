@@ -39,5 +39,7 @@ module "canary" {
   otel_headers_secret_id       = module.secrets.otel_exporter_headers_id
   canary_faults_enabled        = var.canary_faults_enabled
   canary_fault_latency_ms      = var.canary_fault_latency_ms
+  canary_fault_mode            = var.canary_fault_mode
+  canary_fault_rate            = var.canary_fault_rate
   labels                       = local.common_labels
 }

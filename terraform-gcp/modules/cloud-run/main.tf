@@ -53,6 +53,14 @@ resource "google_cloud_run_v2_service" "this" {
         value = tostring(var.canary_fault_latency_ms)
       }
       env {
+        name  = "CANARY_FAULT_MODE"
+        value = var.canary_fault_mode
+      }
+      env {
+        name  = "CANARY_FAULT_RATE"
+        value = tostring(var.canary_fault_rate)
+      }
+      env {
         name = "DATABASE_URL"
         value_source {
           secret_key_ref {
