@@ -200,3 +200,23 @@ run_stage() {
   done
 }
 
+if [ "${PROMOTION_MODE}" = "automatic" ]; then
+  run_stage 0 0 "$CANARY_FAULTS_ENABLED" 0
+  run_stage 1 10 "$CANARY_FAULTS_ENABLED" "$BAKE_TIME_SECONDS"
+  run_stage 2 25 "$CANARY_FAULTS_ENABLED" "$BAKE_TIME_SECONDS"
+  run_stage 3 100 false "$BAKE_TIME_SECONDS"
+else
+  case "$DEPLOYMENT_STAGE" in
+    0) run_stage 0 0 "$CANARY_FAULTS_ENABLED" 0 ;;
+    1) run_stage 1 10 "$CANARY_FAULTS_ENABLED" "$BAKE_TIME_SECONDS" ;;
+    2) run_stage 2 25 "$CANARY_FAULTS_ENABLED" "$BAKE_TIME_SECONDS" ;;
+    3)
+      if [ "${STAGE2_APPROVED:-false}" != "true" ]; then
+        echo "Stage 3 requires verified approval evidence from stage 2."
+        exit 3
+      fi
+      run_stage 3 100 false "$BAKE_TIME_SECONDS"
+      ;;
+    *) echo "Invalid deployment stage: $DEPLOYMENT_STAGE"; exit 3 ;;
+  esac
+fi
