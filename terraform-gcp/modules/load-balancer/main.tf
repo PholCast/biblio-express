@@ -62,6 +62,44 @@ resource "google_compute_url_map" "this" {
       weight          = var.canary_traffic_percent
     }
   }
+
+  host_rule {
+    hosts        = ["*"]
+    path_matcher = "canary-split"
+  }
+
+  path_matcher {
+    name = "canary-split"
+
+    # Reparto ponderado normal entre stable y canary según la etapa.
+    default_route_action {
+      weighted_backend_services {
+        backend_service = google_compute_backend_service.stable.id
+        weight          = var.stable_traffic_percent
+      }
+
+      weighted_backend_services {
+        backend_service = google_compute_backend_service.canary.id
+        weight          = var.canary_traffic_percent
+      }
+    }
+
+    # Acceso interno/smoke tests: "x-canary: true" va siempre al canary,
+    # incluso en la Etapa 0 (0% de tráfico público).
+    route_rules {
+      priority = 1
+      service  = google_compute_backend_service.canary.id
+
+      match_rules {
+        prefix_match = "/"
+
+        header_matches {
+          header_name = "x-canary"
+          exact_match = "true"
+        }
+      }
+    }
+  }
 }
 
 resource "google_compute_target_http_proxy" "this" {
