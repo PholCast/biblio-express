@@ -3,18 +3,24 @@ name: GCP Canary Deployment
 on:
   workflow_dispatch:
     inputs:
-      canary_percent:
-        description: "Porcentaje de tráfico para canary"
+      promotion_mode:
+        description: "Modo de promoción Canary"
+        required: true
+        type: choice
+        default: "manual"
+        options:
+          - automatic
+          - manual
+      deployment_stage:
+        description: "Etapa manual: 0 interna, 1=10%, 2=25%, 3=100%"
         required: true
         type: choice
         default: "0"
         options:
           - "0"
-          - "5"
-          - "10"
-          - "25"
-          - "50"
-          - "100"
+          - "1"
+          - "2"
+          - "3"
       bake_time_seconds:
         description: "Tiempo de horneado de esta etapa (segundos)"
         required: true
@@ -52,7 +58,7 @@ env:
   TF_ROOT: canary-source/terraform-gcp
   TF_STATE_BUCKET: biblio-express-tfstate-2026-pholcast
   TF_STATE_PREFIX: biblio-express
-  STABLE_VERSION: 3.0.1
+  STABLE_VERSION: 3.0.2
   CANARY_VERSION: 4.0.0
 
 jobs:
@@ -133,9 +139,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: wait-infrastructure
     env:
-      CANARY_PERCENT: ${{ inputs.canary_percent || '0' }}
+      PROMOTION_MODE: ${{ inputs.promotion_mode || 'manual' }}
+      DEPLOYMENT_STAGE: ${{ inputs.deployment_stage || '0' }}
       CANARY_FAULTS_ENABLED: ${{ inputs.canary_faults_enabled || false }}
       BAKE_TIME_SECONDS: ${{ inputs.bake_time_seconds || '300' }}
+      TARGET_REQUESTS_PER_TRACK: "100"
+      LOAD_CONCURRENCY: "20"
+      MAX_OBSERVATION_SECONDS: "120"
+      MAX_GATE_RETRIES: "3"
 
     steps:
       - name: Checkout canary source
@@ -146,7 +157,7 @@ jobs:
       - name: Checkout stable v3 source
         uses: actions/checkout@v4
         with:
-          ref: v3.0.1
+          ref: v3.0.2
           path: stable-source
           fetch-depth: 1
 
