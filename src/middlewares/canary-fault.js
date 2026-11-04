@@ -1,5 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
+const FAULT_MODES = new Set(['error', 'latency']);
+
 const isAuthorized = (providedToken, expectedToken) => {
   if (!providedToken || !expectedToken) {
     return false;
@@ -14,43 +16,29 @@ const isAuthorized = (providedToken, expectedToken) => {
   );
 };
 
-export const canaryFault = async (req, res, next) => {
-  // Nunca inyectar fallos fuera de canary.
-  if (process.env.APP_TRACK !== 'canary') {
-    return next();
-  }
+const faultDelayMs = () => {
+  const configuredDelay = Number(
+    process.env.CANARY_FAULT_LATENCY_MS ?? 2000,
+  );
 
-  // Desactivado por defecto.
-  if (process.env.CANARY_FAULTS_ENABLED !== 'true') {
-    return next();
-  }
+  return Number.isFinite(configuredDelay)
+    ? Math.min(Math.max(configuredDelay, 100), 5000)
+    : 2000;
+};
 
-  const fault = req.get('x-canary-fault');
+const faultRatePercent = () => {
+  const rate = Number(process.env.CANARY_FAULT_RATE ?? 25);
+  return Number.isFinite(rate) ? Math.min(Math.max(rate, 0), 100) : 25;
+};
 
-  if (!fault) {
-    return next();
-  }
+const isApiRequest = (req) => {
+  const path = req.originalUrl.split('?')[0];
+  return path === '/api' || path.startsWith('/api/');
+};
 
-  const expectedToken = process.env.CANARY_FAULT_TOKEN;
-  const providedToken = req.get('x-canary-fault-token');
-
-  if (!isAuthorized(providedToken, expectedToken)) {
-    return res.status(403).json({
-      message: 'Unauthorized fault injection',
-    });
-  }
-
+const applyFault = async (fault, res, next) => {
   if (fault === 'latency') {
-    const configuredDelay = Number(
-      process.env.CANARY_FAULT_LATENCY_MS ?? 2000,
-    );
-
-    const delayMs = Number.isFinite(configuredDelay)
-      ? Math.min(Math.max(configuredDelay, 100), 5000)
-      : 2000;
-
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-
+    await new Promise((resolve) => setTimeout(resolve, faultDelayMs()));
     return next();
   }
 
@@ -63,4 +51,46 @@ export const canaryFault = async (req, res, next) => {
   return res.status(400).json({
     message: 'Unsupported canary fault type',
   });
+};
+
+export const canaryFault = async (req, res, next) => {
+  // Nunca inyectar fallos fuera de canary.
+  if (process.env.APP_TRACK !== 'canary') {
+    return next();
+  }
+
+  // Desactivado por defecto.
+  if (process.env.CANARY_FAULTS_ENABLED !== 'true') {
+    return next();
+  }
+
+  // Modo manual: cabecera x-canary-fault con token, para pruebas puntuales.
+  const fault = req.get('x-canary-fault');
+
+  if (fault) {
+    const expectedToken = process.env.CANARY_FAULT_TOKEN;
+    const providedToken = req.get('x-canary-fault-token');
+
+    if (!isAuthorized(providedToken, expectedToken)) {
+      return res.status(403).json({
+        message: 'Unauthorized fault injection',
+      });
+    }
+
+    return applyFault(fault, res, next);
+  }
+
+  // Modo por variable: simula una regresión real en un porcentaje del
+  // tráfico /api del canary, sin cabecera. /health queda excluido.
+  const mode = process.env.CANARY_FAULT_MODE ?? 'none';
+
+  if (
+    FAULT_MODES.has(mode) &&
+    isApiRequest(req) &&
+    Math.random() * 100 < faultRatePercent()
+  ) {
+    return applyFault(mode, res, next);
+  }
+
+  return next();
 };
