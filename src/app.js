@@ -22,6 +22,8 @@ app.use(canaryFault);
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
+    appVersion: process.env.APP_VERSION || 'unknown',
+    track: process.env.APP_TRACK || 'unknown',
   });
 });
 

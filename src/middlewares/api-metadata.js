@@ -13,13 +13,18 @@ export const apiMetadata = (req, res, next) => {
       path === prefix || path.startsWith(`${prefix}/`),
   );
 
+  const appVersion = process.env.APP_VERSION || 'unknown';
+  const track = process.env.APP_TRACK || 'unknown';
+
+  // Versión y track en todas las respuestas (incluye /health y 404).
+  res.setHeader('X-App-Version', appVersion);
+  res.setHeader('X-App-Track', track);
+
   if (!apiPrefix) {
     return next();
   }
 
   const apiVersion = API_VERSIONS[apiPrefix];
-  const appVersion = process.env.APP_VERSION || 'unknown';
-  const track = process.env.APP_TRACK || 'unknown';
 
   const metadata = {
     apiVersion,
@@ -28,8 +33,6 @@ export const apiMetadata = (req, res, next) => {
   };
 
   res.setHeader('X-API-Version', apiVersion);
-  res.setHeader('X-App-Version', appVersion);
-  res.setHeader('X-App-Track', track);
 
   const originalJson = res.json.bind(res);
 
