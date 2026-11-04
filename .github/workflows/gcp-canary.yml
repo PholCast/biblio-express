@@ -327,6 +327,20 @@ jobs:
           if-no-files-found: error
 
       - name: Show deployment outputs
+        if: success()
         working-directory: ${{ env.TF_ROOT }}
         run: |
           terraform output
+
+      - name: Roll back traffic after workflow failure
+        if: failure() && env.STABLE_IMAGE != '' && env.CANARY_IMAGE != ''
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          set -euo pipefail
+          terraform apply -input=false -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="stable_image=${STABLE_IMAGE}" \
+            -var="canary_image=${CANARY_IMAGE}" \
+            -var="stable_traffic_percent=100" \
+            -var="canary_traffic_percent=0" \
+            -var="canary_faults_enabled=false"
