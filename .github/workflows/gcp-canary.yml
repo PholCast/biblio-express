@@ -296,68 +296,35 @@ jobs:
           echo "Stable: $STABLE_IMAGE"
           echo "Canary: $CANARY_IMAGE"
 
-      - name: Calculate traffic split
-        run: |
-          stable_percent=$((100 - CANARY_PERCENT))
-          echo "STABLE_PERCENT=$stable_percent" >> "$GITHUB_ENV"
-
-      - name: Plan infrastructure and traffic
+      - name: Execute Canary stages and Quality Gate
         working-directory: ${{ env.TF_ROOT }}
+        env:
+          PROMOTION_MODE: ${{ env.PROMOTION_MODE }}
+          DEPLOYMENT_STAGE: ${{ env.DEPLOYMENT_STAGE }}
+          CANARY_FAULTS_ENABLED: ${{ env.CANARY_FAULTS_ENABLED }}
+          BAKE_TIME_SECONDS: ${{ env.BAKE_TIME_SECONDS }}
+          TARGET_REQUESTS_PER_TRACK: ${{ env.TARGET_REQUESTS_PER_TRACK }}
+          LOAD_CONCURRENCY: ${{ env.LOAD_CONCURRENCY }}
+          MAX_OBSERVATION_SECONDS: ${{ env.MAX_OBSERVATION_SECONDS }}
+          MAX_GATE_RETRIES: ${{ env.MAX_GATE_RETRIES }}
+          SCRIPT_ROOT: ../scripts
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          STABLE_SERVICE: biblio-express-demo-stable
+          CANARY_SERVICE: biblio-express-demo-canary
         run: |
-          terraform plan -input=false \
-            -var-file=terraform.tfvars \
-            -var="stable_image=${STABLE_IMAGE}" \
-            -var="canary_image=${CANARY_IMAGE}" \
-            -var="stable_traffic_percent=${STABLE_PERCENT}" \
-            -var="canary_traffic_percent=${CANARY_PERCENT}" \
-            -var="canary_faults_enabled=${CANARY_FAULTS_ENABLED}"
+          chmod +x ../scripts/run-canary-stages.sh
+          LOAD_BALANCER_URL=$(terraform output -raw load_balancer_url)
+          export LOAD_BALANCER_URL
+          export STABLE_IMAGE CANARY_IMAGE
+          ../scripts/run-canary-stages.sh
 
-      - name: Apply infrastructure and traffic
-        working-directory: ${{ env.TF_ROOT }}
-        run: |
-          terraform apply -input=false -auto-approve \
-            -var-file=terraform.tfvars \
-            -var="stable_image=${STABLE_IMAGE}" \
-            -var="canary_image=${CANARY_IMAGE}" \
-            -var="stable_traffic_percent=${STABLE_PERCENT}" \
-            -var="canary_traffic_percent=${CANARY_PERCENT}" \
-            -var="canary_faults_enabled=${CANARY_FAULTS_ENABLED}"
-
-      - name: Smoke test canary at 0% public traffic
-        if: env.CANARY_PERCENT == '0'
-        working-directory: ${{ env.TF_ROOT }}
-        run: |
-          canary_url=$(terraform output -raw canary_service_url)
-          response_file=$(mktemp)
-          trap 'rm -f "$response_file"' EXIT
-
-          for attempt in {1..12}; do
-            status=$(curl --silent --show-error \
-              --retry 2 \
-              -H "x-canary: true" \
-              -D "$response_file" \
-              -o /dev/null \
-              -w "%{http_code}" \
-              "${canary_url}/api/v4/books" || true)
-              track=$(awk 'BEGIN { IGNORECASE=1 } /^x-app-track:/ { print $2 }' "$response_file" | tr -d '\r')
-              if [ "$status" -ge 200 ] && [ "$status" -lt 500 ] && [ "$track" = "canary" ]; then
-                echo "Canary smoke test passed with x-canary: true (HTTP ${status})."
-                exit 0
-              fi
-            sleep 10
-          done
-
-          echo "Canary smoke test failed or did not return X-App-Track: canary."
-          exit 1
-
-      - name: Bake current traffic stage
-        if: env.BAKE_TIME_SECONDS != '0'
-        run: |
-          case "$BAKE_TIME_SECONDS" in
-            ''|*[!0-9]*) echo "BAKE_TIME_SECONDS must be a non-negative integer"; exit 1 ;;
-          esac
-          echo "Baking ${CANARY_PERCENT}% canary traffic for ${BAKE_TIME_SECONDS} seconds."
-          sleep "$BAKE_TIME_SECONDS"
+      - name: Upload stage 2 approval evidence
+        if: success() && (env.PROMOTION_MODE == 'automatic' || env.DEPLOYMENT_STAGE == '2')
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-stage-2-approved-${{ github.sha }}
+          path: ${{ env.TF_ROOT }}/stage-2-approved.json
+          if-no-files-found: error
 
       - name: Show deployment outputs
         working-directory: ${{ env.TF_ROOT }}
