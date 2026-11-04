@@ -2,6 +2,7 @@
   "windowSeconds": 120,
   "minimumRequestsPerTrack": 100,
   "max5xxRate": 0.01,
+  "max4xxRate": 0.05,
   "maxP95LatencyMs": 500,
   "maxP95RegressionPercent": 20
 }

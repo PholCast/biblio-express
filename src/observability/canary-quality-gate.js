@@ -19,6 +19,9 @@ export const evaluateCanary = (snapshot, slo) => {
     !Number.isFinite(slo.max5xxRate) ||
     slo.max5xxRate < 0 ||
     slo.max5xxRate > 1 ||
+    !Number.isFinite(slo.max4xxRate) ||
+    slo.max4xxRate < 0 ||
+    slo.max4xxRate > 1 ||
     !Number.isFinite(slo.maxP95LatencyMs) ||
     slo.maxP95LatencyMs <= 0 ||
     !Number.isFinite(slo.maxP95RegressionPercent) ||
@@ -87,10 +90,13 @@ export const evaluateCanary = (snapshot, slo) => {
 
   const stable5xxRate = stable.errors5xx / stable.requests;
   const canary5xxRate = canary.errors5xx / canary.requests;
+  const stable4xxRate = stable.errors4xx / stable.requests;
+  const canary4xxRate = canary.errors4xx / canary.requests;
 
   // Primero comprobar los límites absolutos del canary.
   if (
     canary5xxRate > slo.max5xxRate ||
+    canary4xxRate > slo.max4xxRate ||
     canary.p95LatencyMs > slo.maxP95LatencyMs
   ) {
     return abort(
@@ -123,8 +129,18 @@ export const evaluateCanary = (snapshot, slo) => {
     metrics: {
       stable5xxRate,
       canary5xxRate,
+      stable4xxRate,
+      canary4xxRate,
+      stableP50LatencyMs: stable.p50LatencyMs,
+      canaryP50LatencyMs: canary.p50LatencyMs,
       stableP95LatencyMs: stable.p95LatencyMs,
       canaryP95LatencyMs: canary.p95LatencyMs,
+      stableP99LatencyMs: stable.p99LatencyMs,
+      canaryP99LatencyMs: canary.p99LatencyMs,
+      stableCpuUtilization: stable.cpuUtilization,
+      canaryCpuUtilization: canary.cpuUtilization,
+      stableMemoryBytes: stable.memoryBytes,
+      canaryMemoryBytes: canary.memoryBytes,
       stableRequests: stable.requests,
       canaryRequests: canary.requests,
     },
