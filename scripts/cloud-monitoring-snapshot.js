@@ -163,3 +163,74 @@ const metricTypes = {
   memory: 'run.googleapis.com/container/memory/usage',
 };
 
+const queryTrack = async (track, service) => {
+  const requests = await listAvailableTimeSeries(
+    serviceFilter(service, metricTypes.requests),
+    { perSeriesAligner: 'ALIGN_SUM' },
+    `${track} (${service}) ${metricTypes.requests}`,
+  );
+  const errors4xx = await listTimeSeries(
+    serviceFilter(
+      service,
+      metricTypes.requests,
+      ' AND metric.labels.response_code_class = "4xx"',
+    ),
+    { perSeriesAligner: 'ALIGN_SUM' },
+  );
+  const errors5xx = await listTimeSeries(
+    serviceFilter(
+      service,
+      metricTypes.requests,
+      ' AND metric.labels.response_code_class = "5xx"',
+    ),
+    { perSeriesAligner: 'ALIGN_SUM' },
+  );
+
+  const latency = {};
+  const latencySeries = await listAvailableTimeSeries(
+    serviceFilter(service, metricTypes.latency),
+    distributionAggregation,
+    `${track} (${service}) ${metricTypes.latency}`,
+  );
+  for (const percentile of [50, 95, 99]) {
+    latency[`p${percentile}`] = percentileFromCombinedDistributions(
+      latencySeries,
+      percentile,
+    );
+  }
+
+  const cpu = await listAvailableTimeSeries(
+    serviceFilter(service, metricTypes.cpu),
+    distributionAggregation,
+    `${track} (${service}) ${metricTypes.cpu}`,
+  );
+  const memory = await listAvailableTimeSeries(
+    serviceFilter(service, metricTypes.memory),
+    distributionAggregation,
+    `${track} (${service}) ${metricTypes.memory}`,
+  );
+
+  const counters = {
+    requests: Math.round(sum(requests)),
+    errors4xx: Math.round(sum(errors4xx)),
+    errors5xx: Math.round(sum(errors5xx)),
+  };
+  if (
+    !Number.isFinite(counters.requests) ||
+    !Number.isFinite(counters.errors4xx) ||
+    !Number.isFinite(counters.errors5xx)
+  ) {
+    throw new Error(`Cloud Monitoring returned invalid counters for ${track}.`);
+  }
+
+  return {
+    ...counters,
+    p50LatencyMs: latency.p50,
+    p95LatencyMs: latency.p95,
+    p99LatencyMs: latency.p99,
+    cpuUtilization: latestDistributionMean(cpu),
+    memoryBytes: latestDistributionMean(memory),
+    track,
+  };
+};
+
