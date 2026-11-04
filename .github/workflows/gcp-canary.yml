@@ -216,6 +216,51 @@ jobs:
             -backend-config="bucket=${TF_STATE_BUCKET}" \
             -backend-config="prefix=${TF_STATE_PREFIX}"
 
+      - name: Verify stage 2 approval evidence
+        if: env.PROMOTION_MODE == 'manual' && env.DEPLOYMENT_STAGE == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          artifact_id=$(gh api \
+            "repos/${REPOSITORY}/actions/artifacts?per_page=100" |
+            jq -r --arg artifact "canary-stage-2-approved-${GITHUB_SHA}" '
+              [.artifacts[]
+                | select(.name == $artifact and .expired == false)]
+              | sort_by(.created_at)
+              | last
+              | .id // empty')
+
+          if [ -z "$artifact_id" ]; then
+            echo "No stage 2 approval artifact was found for commit ${GITHUB_SHA}."
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/stage-2-evidence"
+          gh api \
+            "repos/${REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > "$RUNNER_TEMP/stage-2-evidence/evidence.zip"
+          unzip -q "$RUNNER_TEMP/stage-2-evidence/evidence.zip" \
+            -d "$RUNNER_TEMP/stage-2-evidence/unpacked"
+          jq -e \
+            --arg commit_sha "$GITHUB_SHA" '
+            .decision == "promote" and
+            .stage == 2 and
+            .commit_sha == $commit_sha and
+            (.canary_image | test("@sha256:[0-9a-f]{64}$")) and
+            (.stable_image | test("@sha256:[0-9a-f]{64}$"))
+          ' "$RUNNER_TEMP/stage-2-evidence/unpacked/stage-2-approved.json"
+          jq -r '.stable_image, .canary_image' \
+            "$RUNNER_TEMP/stage-2-evidence/unpacked/stage-2-approved.json" |
+            {
+              read stable_image
+              read canary_image
+              echo "STABLE_IMAGE=$stable_image" >> "$GITHUB_ENV"
+              echo "CANARY_IMAGE=$canary_image" >> "$GITHUB_ENV"
+            }
+          echo "STAGE2_APPROVED=true" >> "$GITHUB_ENV"
+
       - name: Build and push stable v3 image
         working-directory: stable-source
         run: |
