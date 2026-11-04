@@ -122,3 +122,81 @@ run_stage() {
     return 0
   fi
 
+  local attempt start end gate_code
+  for attempt in $(seq 1 "${MAX_GATE_RETRIES}"); do
+    echo "Quality Gate attempt ${attempt}/${MAX_GATE_RETRIES}."
+    start=$(date +%s)
+    set +e
+    node "$SCRIPT_ROOT/canary-load.js" "$LOAD_BALANCER_URL" "$canary_percent" \
+      "$TARGET_REQUESTS_PER_TRACK" "$LOAD_CONCURRENCY" "$MAX_OBSERVATION_SECONDS"
+    local load_code=$?
+    elapsed=$(( $(date +%s) - start ))
+    if [ "$elapsed" -lt "$MAX_OBSERVATION_SECONDS" ]; then
+      sleep $((MAX_OBSERVATION_SECONDS - elapsed))
+    fi
+    end=$(date +%s)
+
+    node "$SCRIPT_ROOT/cloud-monitoring-snapshot.js" \
+      "$start" "$end" snapshot.json
+    local snapshot_code=$?
+    set -e
+
+    if [ "$load_code" -ne 0 ] || [ "$snapshot_code" -ne 0 ]; then
+      echo "Traffic generation or Cloud Monitoring snapshot failed; rolling back."
+      rollback
+      return 3
+    fi
+
+    set +e
+    node "$SCRIPT_ROOT/canary-quality-gate.js" snapshot.json
+    gate_code=$?
+    set -e
+
+    case "$gate_code" in
+      0)
+        echo "Quality Gate: promote."
+        set +e
+        jq --arg stage "$stage" --arg run_id "${GITHUB_RUN_ID:-0}" \
+          --arg commit_sha "${GITHUB_SHA:-}" \
+          --arg canary_image "$CANARY_IMAGE" --arg stable_image "$STABLE_IMAGE" \
+          '. + {
+            decision: "promote",
+            stage: ($stage | tonumber),
+            run_id: ($run_id | tonumber),
+            commit_sha: $commit_sha,
+            canary_image: $canary_image,
+            stable_image: $stable_image
+          }' \
+          snapshot.json > "stage-${stage}-approved.json"
+        local evidence_code=$?
+        set -e
+        if [ "$evidence_code" -ne 0 ]; then
+          echo "Unable to create stage approval evidence; rolling back."
+          rollback
+          return 3
+        fi
+        return 0
+        ;;
+      1)
+        if [ "$attempt" -lt "$MAX_GATE_RETRIES" ]; then
+          echo "Quality Gate: pause; collecting another sample."
+          continue
+        fi
+        echo "Quality Gate: pause; maximum retries reached."
+        rollback
+        return 1
+        ;;
+      2)
+        echo "Quality Gate: abort; rolling back."
+        rollback
+        return 2
+        ;;
+      *)
+        echo "Quality Gate failed with internal/configuration error."
+        rollback
+        return 3
+        ;;
+    esac
+  done
+}
+
