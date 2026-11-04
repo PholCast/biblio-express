@@ -59,53 +59,70 @@ resource "google_monitoring_alert_policy" "canary_latency" {
   notification_channels = var.notification_email == "" ? [] : [google_monitoring_notification_channel.email[0].name]
 }
 
+locals {
+  run_filter = "resource.type=\"cloud_run_revision\""
+
+  # Paneles stable vs canary: cada uno dibuja una serie por servicio.
+  dashboard_panels = [
+    {
+      title     = "Tráfico (req/s)"
+      metric    = "run.googleapis.com/request_count"
+      extra     = ""
+      aligner   = "ALIGN_RATE"
+      reducer   = "REDUCE_SUM"
+      threshold = null
+    },
+    {
+      title     = "Errores 5xx (req/s)"
+      metric    = "run.googleapis.com/request_count"
+      extra     = " metric.labels.response_code_class=\"5xx\""
+      aligner   = "ALIGN_RATE"
+      reducer   = "REDUCE_SUM"
+      threshold = null
+    },
+    {
+      title     = "Latencia p95 (ms) - SLO 500 ms"
+      metric    = "run.googleapis.com/request_latencies"
+      extra     = ""
+      aligner   = "ALIGN_PERCENTILE_95"
+      reducer   = "REDUCE_MAX"
+      threshold = 500
+    },
+  ]
+}
+
 resource "google_monitoring_dashboard" "this" {
   project = var.project_id
   dashboard_json = jsonencode({
     displayName = var.dashboard_name
     gridLayout = {
-      columns = "2"
+      columns = "3"
       widgets = [
-        {
-          title = "Request rate: stable vs canary"
-          xyChart = {
-            dataSets = [
-              for service in [var.stable_service, var.canary_service] : {
-                legendTemplate = service
-                plotType       = "LINE"
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${service}\""
-                    aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
-                      crossSeriesReducer = "REDUCE_SUM"
+        for panel in local.dashboard_panels : {
+          title = panel.title
+          xyChart = merge(
+            {
+              dataSets = [
+                for service in [var.stable_service, var.canary_service] : {
+                  legendTemplate = service
+                  plotType       = "LINE"
+                  timeSeriesQuery = {
+                    timeSeriesFilter = {
+                      filter = "metric.type=\"${panel.metric}\" ${local.run_filter} resource.labels.service_name=\"${service}\"${panel.extra}"
+                      aggregation = {
+                        alignmentPeriod    = "60s"
+                        perSeriesAligner   = panel.aligner
+                        crossSeriesReducer = panel.reducer
+                      }
                     }
                   }
                 }
-              }
-            ]
-          }
-        },
-        {
-          title = "Request latency p95"
-          xyChart = {
-            dataSets = [
-              for service in [var.stable_service, var.canary_service] : {
-                legendTemplate = service
-                plotType       = "LINE"
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${service}\""
-                    aggregation = {
-                      alignmentPeriod  = "60s"
-                      perSeriesAligner = "ALIGN_PERCENTILE_95"
-                    }
-                  }
-                }
-              }
-            ]
-          }
+              ]
+            },
+            panel.threshold == null ? {} : {
+              thresholds = [{ value = panel.threshold }]
+            },
+          )
         }
       ]
     }
