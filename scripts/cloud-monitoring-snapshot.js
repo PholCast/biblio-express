@@ -85,3 +85,81 @@ const monitoringRequest = async (path, params = {}) => {
   }
 };
 
+const listTimeSeries = async (filter, aggregation = {}) => {
+  const values = [];
+  let pageToken;
+
+  do {
+    const body = await monitoringRequest('timeSeries', {
+      filter,
+      'interval.startTime': interval.startTime,
+      'interval.endTime': interval.endTime,
+      'aggregation.alignmentPeriod': `${windowSeconds}s`,
+      ...Object.fromEntries(
+        Object.entries(aggregation).map(([key, value]) => [
+          `aggregation.${key}`,
+          value,
+        ]),
+      ),
+      pageSize: '1000',
+      pageToken,
+    });
+    values.push(...(body.timeSeries ?? []));
+    pageToken = body.nextPageToken;
+  } while (pageToken);
+
+  return values;
+};
+
+const listAvailableTimeSeries = async (
+  filter,
+  aggregation,
+  metricDescription,
+) => {
+  const deadline = Date.now() + METRICS_POLL_TIMEOUT_MS;
+  let lastSeries = [];
+
+  while (true) {
+    lastSeries = await listTimeSeries(filter, aggregation);
+    if (lastSeries.some((series) => (series.points ?? []).length > 0)) {
+      return lastSeries;
+    }
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new Error(
+        `Cloud Monitoring metrics unavailable after ${METRICS_POLL_TIMEOUT_MS}ms: ${metricDescription}. ` +
+          'No time-series points were published for this track and metric.',
+      );
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(METRICS_POLL_INTERVAL_MS, remaining)),
+    );
+  }
+};
+
+const pointValues = (series) =>
+  series.flatMap((item) => item.points ?? []).map((point) => point.value);
+
+const numberFromValue = (value) =>
+  Number(value?.doubleValue ?? value?.int64Value ?? value?.boolValue);
+
+const sum = (series) =>
+  pointValues(series).reduce((total, value) => total + numberFromValue(value), 0);
+
+const serviceFilter = (service, metricType, extra = '') =>
+  `metric.type = "${metricType}" AND resource.type = "cloud_run_revision" AND resource.labels.service_name = "${service}"${extra}`;
+
+const services = {
+  stable: process.env.STABLE_SERVICE ?? 'biblio-express-demo-stable',
+  canary: process.env.CANARY_SERVICE ?? 'biblio-express-demo-canary',
+};
+
+const metricTypes = {
+  requests: 'run.googleapis.com/request_count',
+  latency: 'run.googleapis.com/request_latencies',
+  cpu: 'run.googleapis.com/container/cpu/utilizations',
+  memory: 'run.googleapis.com/container/memory/usage',
+};
+
