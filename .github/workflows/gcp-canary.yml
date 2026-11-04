@@ -262,15 +262,25 @@ jobs:
           echo "STAGE2_APPROVED=true" >> "$GITHUB_ENV"
 
       - name: Build and push stable v3 image
+        if: env.PROMOTION_MODE != 'manual' || env.DEPLOYMENT_STAGE != '3'
         working-directory: stable-source
         run: |
-          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:v${STABLE_VERSION}"
+          image_base="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}"
+          image="${image_base}:v${STABLE_VERSION}"
+          existing_digest=$(gcloud artifacts docker images describe "$image" \
+            --format='value(image_summary.digest)' 2>/dev/null || true)
+          if [ -n "$existing_digest" ]; then
+            echo "Reusing existing stable image ${image_base}@${existing_digest}"
+            echo "STABLE_IMAGE=${image_base}@${existing_digest}" >> "$GITHUB_ENV"
+            exit 0
+          fi
           docker build --pull -t "$image" .
           docker push "$image"
           digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image")
           echo "STABLE_IMAGE=$digest" >> "$GITHUB_ENV"
 
       - name: Build and push canary v4 image
+        if: env.PROMOTION_MODE != 'manual' || env.DEPLOYMENT_STAGE != '3'
         working-directory: canary-source
         run: |
           image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:v${CANARY_VERSION}-${GITHUB_SHA::12}"
