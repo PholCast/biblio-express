@@ -81,12 +81,60 @@ locals {
       threshold = null
     },
     {
+      title     = "Errores 4xx (req/s)"
+      metric    = "run.googleapis.com/request_count"
+      extra     = " metric.labels.response_code_class=\"4xx\""
+      aligner   = "ALIGN_RATE"
+      reducer   = "REDUCE_SUM"
+      threshold = null
+    },
+    {
+      title     = "Latencia p50 (ms)"
+      metric    = "run.googleapis.com/request_latencies"
+      extra     = ""
+      aligner   = "ALIGN_PERCENTILE_50"
+      reducer   = "REDUCE_MAX"
+      threshold = null
+    },
+    {
       title     = "Latencia p95 (ms) - SLO 500 ms"
       metric    = "run.googleapis.com/request_latencies"
       extra     = ""
       aligner   = "ALIGN_PERCENTILE_95"
       reducer   = "REDUCE_MAX"
       threshold = 500
+    },
+    {
+      title     = "Latencia p99 (ms)"
+      metric    = "run.googleapis.com/request_latencies"
+      extra     = ""
+      aligner   = "ALIGN_PERCENTILE_99"
+      reducer   = "REDUCE_MAX"
+      threshold = null
+    },
+    {
+      title     = "CPU utilization p95"
+      metric    = "run.googleapis.com/container/cpu/utilizations"
+      extra     = ""
+      aligner   = "ALIGN_PERCENTILE_95"
+      reducer   = "REDUCE_MAX"
+      threshold = null
+    },
+    {
+      title     = "Memory utilization p95"
+      metric    = "run.googleapis.com/container/memory/utilizations"
+      extra     = ""
+      aligner   = "ALIGN_PERCENTILE_95"
+      reducer   = "REDUCE_MAX"
+      threshold = null
+    },
+    {
+      title     = "Instancias activas"
+      metric    = "run.googleapis.com/container/instance_count"
+      extra     = ""
+      aligner   = "ALIGN_MAX"
+      reducer   = "REDUCE_SUM"
+      threshold = null
     },
   ]
 }
