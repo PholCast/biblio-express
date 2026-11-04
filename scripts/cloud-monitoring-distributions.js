@@ -25,9 +25,9 @@ const validateBucketCounts = (distribution, expectedLength) => {
 
   const count = Number(distribution.count);
   const sum = normalized.reduce((total, value) => total + Number(value), 0);
-  if (!Number.isFinite(count) || count < 0 || sum !== count) {
-    throw new Error(
-      'Cloud Monitoring bucket counts do not match the distribution count.',
+  if (Number.isFinite(count) && sum !== count) {
+    console.warn(
+      `Cloud Monitoring distribution count (${count}) differs from bucket sum (${sum}); using bucket sum.`,
     );
   }
 
@@ -145,22 +145,19 @@ export const percentileFromCombinedDistributions = (
   const expectedLength = expectedBucketCount(first.bucketOptions);
   const upperBounds = bucketUpperBounds(first.bucketOptions, expectedLength);
   const combinedCounts = Array(expectedLength).fill(0);
-  let totalCount = 0;
-
   for (const distribution of distributions) {
     const counts = validateBucketCounts(distribution, expectedLength);
     counts.forEach((value, index) => {
       combinedCounts[index] += value;
     });
-    totalCount += Number(distribution.count);
   }
 
-  const combinedCount = combinedCounts.reduce(
+  const totalCount = combinedCounts.reduce(
     (total, value) => total + value,
     0,
   );
-  if (combinedCount !== totalCount || totalCount <= 0) {
-    throw new Error('Combined Cloud Monitoring distributions are inconsistent.');
+  if (totalCount <= 0) {
+    return NaN;
   }
 
   const target = totalCount * (percentile / 100);
