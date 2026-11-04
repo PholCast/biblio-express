@@ -56,6 +56,33 @@ handle_unexpected_error() {
 
 trap 'handle_unexpected_error "$?"' ERR
 
+wait_for_traffic_split() {
+  local canary_percent="$1"
+  local samples="${SPLIT_SAMPLE_REQUESTS:-200}"
+  local max_attempts="${SPLIT_MAX_ATTEMPTS:-40}"
+  local attempt canary_hits observed_percent
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    canary_hits=$(seq 1 "$samples" |
+      xargs -P 20 -I{} curl --silent --max-time 10 -o /dev/null -D - \
+        "${LOAD_BALANCER_URL}/health" 2>/dev/null |
+      tr -d '\r' |
+      grep -ci '^x-app-track: canary' || true)
+    observed_percent=$((canary_hits * 100 / samples))
+    echo "Traffic split check ${attempt}/${max_attempts}: ${observed_percent}% Canary observed (target ${canary_percent}%)."
+
+    if [ "$canary_percent" -eq 100 ]; then
+      if [ "$canary_hits" -eq "$samples" ]; then
+        return 0
+      fi
+    elif [ $((canary_hits * 100)) -ge $((samples * canary_percent * 6 / 10)) ]; then
+      return 0
+    fi
+    sleep 15
+  done
+  return 1
+}
+
 run_stage() {
   local stage="$1"
   local canary_percent="$2"
@@ -108,6 +135,12 @@ run_stage() {
     echo "Internal Canary smoke test failed (header_ok=${header_ok}, public_ok=${public_ok})."
     rollback
     return 2
+  fi
+
+  if ! wait_for_traffic_split "$canary_percent"; then
+    echo "Load Balancer did not apply ${canary_percent}% Canary in time; rolling back."
+    rollback
+    return 3
   fi
 
   echo "Baking ${bake} seconds at ${canary_percent}% Canary."
