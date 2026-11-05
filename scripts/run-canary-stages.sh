@@ -154,48 +154,19 @@ run_stage() {
   stage_apply "$canary_percent" "$faults"
 
   if [ "$stage" = "0" ]; then
-    # Etapa 0 vía Load Balancer:
-    #  - con "x-canary: true" debe responder el canary (v4);
-    #  - sin cabecera debe responder el stable (0% público al canary).
-    local header_ok=false public_ok=false
-    for attempt in {1..30}; do
-      local status
-      if [ "$header_ok" = false ]; then
-        status=$(curl --silent --show-error --retry 2 \
-          -H "x-canary: true" \
-          -D /tmp/canary-headers \
-          -o /dev/null \
-          -w "%{http_code}" \
-          "${LOAD_BALANCER_URL}/api/v4/books" || true)
-        if [[ "$status" =~ ^2[0-9][0-9]$ ]] &&
-          grep -qi '^x-app-track: canary' /tmp/canary-headers; then
-          echo "x-canary header routed to Canary."
-          header_ok=true
-        fi
-      fi
+    if ! wait_for_public_stable; then
+      echo "Public traffic did not return to Stable in time; rolling back."
+      rollback
+      return 2
+    fi
 
-      if [ "$public_ok" = false ]; then
-        status=$(curl --silent --show-error --retry 2 \
-          -D /tmp/stable-headers \
-          -o /dev/null \
-          -w "%{http_code}" \
-          "${LOAD_BALANCER_URL}/api/v3/books" || true)
-        if [[ "$status" =~ ^2[0-9][0-9]$ ]] &&
-          grep -qi '^x-app-track: stable' /tmp/stable-headers; then
-          echo "Public traffic without header routed to Stable."
-          public_ok=true
-        fi
-      fi
-
-      if [ "$header_ok" = true ] && [ "$public_ok" = true ]; then
-        echo "Internal Canary smoke test passed."
-        return 0
-      fi
-      sleep 10
-    done
-    echo "Internal Canary smoke test failed (header_ok=${header_ok}, public_ok=${public_ok})."
-    rollback
-    return 2
+    if ! x_canary_smoke_burst; then
+      echo "Internal Canary smoke test failed; rolling back."
+      rollback
+      return 2
+    fi
+    echo "Internal Canary smoke test passed."
+    return 0
   fi
 
   if ! wait_for_traffic_split "$canary_percent"; then
