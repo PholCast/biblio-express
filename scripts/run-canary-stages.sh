@@ -90,6 +90,60 @@ wait_for_traffic_split() {
   return 1
 }
 
+# Etapa 0: el tráfico público (sin cabecera) debe ir 100% al stable.
+wait_for_public_stable() {
+  local samples="${PUBLIC_SAMPLE_REQUESTS:-50}"
+  local max_attempts="${SPLIT_MAX_ATTEMPTS:-40}"
+  local attempt stable_hits
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    stable_hits=$(seq 1 "$samples" |
+      xargs -P 10 -I{} curl --silent --max-time 10 -o /dev/null -D - \
+        "${LOAD_BALANCER_URL}/health" 2>/dev/null |
+      tr -d '\r' |
+      grep -ci '^x-app-track: stable' || true)
+    echo "Public routing check ${attempt}/${max_attempts}: ${stable_hits}/${samples} public requests served by Stable."
+    if [ "$stable_hits" -eq "$samples" ]; then
+      echo "Public traffic without header routed to Stable."
+      return 0
+    fi
+    sleep 15
+  done
+  return 1
+}
+
+# Etapa 0: ráfaga de pruebas internas con x-canary: true. Todas deben ser
+# atendidas por el canary (enrutamiento) y al menos una debe responder 2xx.
+x_canary_smoke_burst() {
+  local rounds="${X_CANARY_ROUNDS:-3}"
+  local max_ids="${X_CANARY_BOOK_IDS:-10}"
+  local max_attempts=6
+  local attempt total canary_hits ok_hits round id status track
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    total=0 canary_hits=0 ok_hits=0
+    for round in $(seq 1 "$rounds"); do
+      for id in $(seq 1 "$max_ids"); do
+        status=$(curl --silent --max-time 10 -H "x-canary: true" \
+          -D /tmp/x-canary-headers -o /dev/null -w "%{http_code}" \
+          "${LOAD_BALANCER_URL}/api/v4/books/${id}" || true)
+        track=$(tr -d '\r' < /tmp/x-canary-headers 2>/dev/null |
+          awk 'tolower($1) == "x-app-track:" { print $2 }' || true)
+        total=$((total + 1))
+        [ "$track" = "canary" ] && canary_hits=$((canary_hits + 1))
+        [[ "$status" =~ ^2[0-9][0-9]$ ]] && ok_hits=$((ok_hits + 1))
+      done
+    done
+    echo "x-canary burst ${attempt}/${max_attempts}: ${canary_hits}/${total} served by Canary, ${ok_hits} with 2xx."
+    if [ "$canary_hits" -eq "$total" ] && [ "$ok_hits" -gt 0 ]; then
+      echo "x-canary header routed to Canary."
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
 run_stage() {
   local stage="$1"
   local canary_percent="$2"
