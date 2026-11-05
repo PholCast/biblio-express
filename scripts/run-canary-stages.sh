@@ -92,7 +92,8 @@ wait_for_traffic_split() {
       if [ $((canary_hits * 100)) -ge $((samples * ${PROMOTION_MIN_OBSERVED_PERCENT:-95})) ]; then
         return 0
       fi
-    elif [ $((canary_hits * 100)) -ge $((samples * canary_percent * 6 / 10)) ]; then
+    elif [ $((canary_hits * 100)) -ge $((samples * canary_percent * 6 / 10)) ] &&
+      [ $((canary_hits * 100)) -le $((samples * canary_percent * 18 / 10)) ]; then
       return 0
     fi
     sleep 15
