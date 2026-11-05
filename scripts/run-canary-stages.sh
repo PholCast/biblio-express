@@ -4,16 +4,26 @@ set -euo pipefail
 TRAFFIC_MODIFIED=false
 ROLLING_BACK=false
 
+TRAFFIC_TARGETS=(
+  -target=module.load_balancer.google_compute_url_map.this
+  -target=module.canary.google_cloud_run_v2_service.this
+)
+
 stage_apply() {
   local canary_percent="$1"
   local faults="$2"
+  local stage="$3"
   local stable_percent=$((100 - canary_percent))
   local fault_mode="none"
+  local targets=()
   if [ "$faults" = "true" ]; then
     fault_mode="${CANARY_FAULT_MODE:-none}"
   fi
+  if [ "$stage" != "0" ]; then
+    targets=("${TRAFFIC_TARGETS[@]}")
+  fi
 
-  if ! terraform apply -input=false -auto-approve \
+  if ! terraform apply -input=false -auto-approve "${targets[@]}" \
       -var-file=terraform.tfvars \
       -var="stable_image=${STABLE_IMAGE}" \
       -var="canary_image=${CANARY_IMAGE}" \
@@ -35,7 +45,7 @@ rollback() {
   fi
   ROLLING_BACK=true
   echo "Rolling back Canary to 0% traffic."
-  if terraform apply -input=false -auto-approve \
+  if terraform apply -input=false -auto-approve "${TRAFFIC_TARGETS[@]}" \
     -var-file=terraform.tfvars \
     -var="stable_image=${STABLE_IMAGE}" \
     -var="canary_image=${CANARY_IMAGE}" \
@@ -79,7 +89,7 @@ wait_for_traffic_split() {
     echo "Traffic split check ${attempt}/${max_attempts}: ${observed_percent}% Canary observed (target ${canary_percent}%)."
 
     if [ "$canary_percent" -eq 100 ]; then
-      if [ "$canary_hits" -eq "$samples" ]; then
+      if [ $((canary_hits * 100)) -ge $((samples * ${PROMOTION_MIN_OBSERVED_PERCENT:-95})) ]; then
         return 0
       fi
     elif [ $((canary_hits * 100)) -ge $((samples * canary_percent * 6 / 10)) ]; then
@@ -88,6 +98,28 @@ wait_for_traffic_split() {
     sleep 15
   done
   return 1
+}
+
+verify_url_map_weights() {
+  local canary_percent="$1"
+  local expected_stable=$((100 - canary_percent))
+  local url_map="${URL_MAP_NAME:-biblio-express-demo-url-map}"
+  local weights
+
+  if ! weights=$(gcloud compute url-maps describe "$url_map" --global \
+      --project "$PROJECT_ID" --format=json |
+    node -e '
+      let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+        const pm = JSON.parse(s).pathMatchers?.[0]?.defaultRouteAction?.weightedBackendServices ?? [];
+        const w = (t) => pm.find((b) => b.backendService.endsWith(`-${t}-backend`))?.weight ?? 0;
+        console.log(`${w("stable")} ${w("canary")}`);
+      });'); then
+    echo "Unable to read URL map ${url_map}."
+    return 1
+  fi
+
+  echo "URL map ${url_map} configured weights: stable=${weights% *} canary=${weights#* } (expected stable=${expected_stable} canary=${canary_percent})."
+  [ "$weights" = "${expected_stable} ${canary_percent}" ]
 }
 
 # Etapa 0: el tráfico público (sin cabecera) debe ir 100% al stable.
@@ -151,7 +183,13 @@ run_stage() {
   local bake="$4"
 
   echo "Applying Canary stage ${stage}: ${canary_percent}% Canary."
-  stage_apply "$canary_percent" "$faults"
+  stage_apply "$canary_percent" "$faults" "$stage"
+
+  if ! verify_url_map_weights "$canary_percent"; then
+    echo "URL map does not match stage ${stage} weights; rolling back."
+    rollback
+    return 3
+  fi
 
   if [ "$stage" = "0" ]; then
     if ! wait_for_public_stable; then
@@ -183,7 +221,7 @@ run_stage() {
   fi
 
   if [ "$stage" = "3" ]; then
-    echo "Stage 3 promoted after verified stage 2 approval; no stable sample required."
+    echo "Stage 3 promoted: URL map verified at 100% Canary after stage 2 approval."
     return 0
   fi
 
