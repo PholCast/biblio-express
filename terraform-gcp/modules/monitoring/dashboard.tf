@@ -51,3 +51,66 @@ locals {
     }
   } }
 
+  # Respuestas por clase de código (una serie por track y clase).
+  class_chart = { for source, cfg in {
+    run = { title = "Respuestas por clase (Cloud Run, req/s)", metric = "run.googleapis.com/request_count", series = local.run_series }
+    lb  = { title = "Respuestas por clase (Load Balancer, req/s)", metric = "loadbalancing.googleapis.com/https/request_count", series = local.lb_series }
+    } : source => {
+    title = cfg.title
+    xyChart = { dataSets = [for track, filter in cfg.series : {
+      legendTemplate  = "${track} $${metric.labels.response_code_class}"
+      plotType        = "LINE"
+      timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"${cfg.metric}\" ${filter}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM", groupByFields = ["metric.label.response_code_class"] } } }
+    }] }
+  } }
+
+  lb_request = "metric.type=\"loadbalancing.googleapis.com/https/request_count\""
+  lb_public  = "resource.labels.matched_url_path_rule=\"UNMATCHED\""
+  lb_header  = "resource.labels.matched_url_path_rule=\"/\""
+
+  canary_scorecards = {
+    errors = {
+      title = "Canary 5xx (fracción) - SLO ≤ 0.01"
+      scorecard = {
+        thresholds     = [{ value = 0.01, color = "RED", direction = "ABOVE" }]
+        sparkChartView = { sparkChartType = "SPARK_LINE" }
+        timeSeriesQuery = { timeSeriesFilterRatio = {
+          numerator   = { filter = "metric.type=\"run.googleapis.com/request_count\" ${local.run_series.canary} metric.labels.response_code_class=\"5xx\"", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" } }
+          denominator = { filter = "metric.type=\"run.googleapis.com/request_count\" ${local.run_series.canary}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" } }
+        } }
+      }
+    }
+    latency = {
+      title = "Canary latencia p95 (ms) - SLO ≤ 500"
+      scorecard = {
+        thresholds      = [{ value = 500, color = "RED", direction = "ABOVE" }]
+        sparkChartView  = { sparkChartType = "SPARK_LINE" }
+        timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"run.googleapis.com/request_latencies\" ${local.run_series.canary}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_PERCENTILE_95", crossSeriesReducer = "REDUCE_MAX" } } }
+      }
+    }
+  }
+
+  slo_text = <<-EOT
+    **Quality gate (observability/canary-slo.json)** - ventana 120 s, ≥ 100 peticiones por track bajo carga concurrente.
+
+    | Decisión | Condición |
+    |---|---|
+    | promote | canary 5xx ≤ 1%, 4xx ≤ 5%, p95 ≤ 500 ms y p95 ≤ stable + 20% |
+    | pause | volumen insuficiente o baseline stable no saludable (reintenta hasta 3 veces) |
+    | abort | canary viola 5xx, 4xx o p95 → rollback a 100% stable / 0% canary |
+
+    Etapas: 0 (0% público, x-canary: true) → 1 (10%) → 2 (25%) → 3 (100%).
+    Negocio en GCP: préstamos creados y consultas de libro (métricas basadas en logs).
+    Libros disponibles (biblio.books.available, OTel) en Grafana Cloud.
+  EOT
+
+  # Métricas de negocio basadas en logs, stable vs canary.
+  business_xy = { for key, m in google_logging_metric.business : key => {
+    title = m.description
+    xyChart = { dataSets = [for track, filter in local.run_series : {
+      legendTemplate  = track
+      plotType        = "STACKED_BAR"
+      timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"logging.googleapis.com/user/${m.name}\" ${filter}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_DELTA", crossSeriesReducer = "REDUCE_SUM" } } }
+    }] }
+  } }
+
