@@ -33,6 +33,7 @@ resource "google_project_iam_member" "deployer_roles" {
     "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
     "roles/iam.workloadIdentityPoolAdmin",
+    "roles/logging.configWriter",
     "roles/monitoring.editor",
     "roles/monitoring.viewer",
     "roles/resourcemanager.projectIamAdmin",
