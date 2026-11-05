@@ -114,3 +114,48 @@ locals {
     }] }
   } }
 
+  # Mosaic de 48 columnas: [x, y, ancho, alto, widget].
+  tiles = [
+    [0, 0, 16, 16, { title = "SLO y decisiones del quality gate", text = { content = local.slo_text, format = "MARKDOWN" } }],
+    [16, 0, 8, 8, local.canary_scorecards.errors],
+    [24, 0, 8, 8, local.canary_scorecards.latency],
+    [16, 8, 16, 8, { title = "Alerta de errores 5xx del canary", alertChart = { name = google_monitoring_alert_policy.canary_5xx.name } }],
+    [32, 0, 16, 8, { title = "Alerta de latencia del canary", alertChart = { name = google_monitoring_alert_policy.canary_latency.name } }],
+    [32, 8, 16, 8, { title = "Pruebas internas x-canary (req/s, Load Balancer)", xyChart = { dataSets = [{ legendTemplate = "canary x-canary", plotType = "STACKED_BAR", timeSeriesQuery = { timeSeriesFilter = { filter = "${local.lb_request} ${local.lb_filter} ${local.lb_header}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" } } } }] } }],
+
+    [0, 16, 16, 16, local.run_xy.traffic],
+    [16, 16, 16, 16, { title = "Reparto PÚBLICO stable vs canary (Load Balancer, sin x-canary)", xyChart = { dataSets = [for track, filter in local.lb_series : { legendTemplate = track, plotType = "STACKED_AREA", timeSeriesQuery = { timeSeriesFilter = { filter = "${local.lb_request} ${filter} ${local.lb_public}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" } } } }] } }],
+    [32, 16, 16, 16, local.class_chart.lb],
+
+    [0, 32, 16, 16, local.error_ratio["5xx"]],
+    [16, 32, 16, 16, local.error_ratio["4xx"]],
+    [32, 32, 16, 16, local.class_chart.run],
+
+    [0, 48, 12, 16, local.run_xy.p50],
+    [12, 48, 12, 16, local.run_xy.p95],
+    [24, 48, 12, 16, local.run_xy.p99],
+    [36, 48, 12, 16, { title = "Latencia p95 extremo a extremo (Load Balancer, ms)", xyChart = { thresholds = [{ value = 500 }], dataSets = [for track, filter in local.lb_series : { legendTemplate = track, plotType = "LINE", timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"loadbalancing.googleapis.com/https/total_latencies\" ${filter}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_PERCENTILE_95", crossSeriesReducer = "REDUCE_MAX" } } } }] } }],
+
+    [0, 64, 12, 16, local.run_xy.cpu],
+    [12, 64, 12, 16, local.run_xy.memory],
+    [24, 64, 12, 16, local.run_xy.inst],
+    [36, 64, 12, 16, local.run_xy.startup],
+
+    [0, 80, 24, 16, { title = "Cloud SQL CPU (BD compartida)", xyChart = { dataSets = [{ legendTemplate = "postgres", plotType = "LINE", timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\" ${local.sql_filter}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MEAN", crossSeriesReducer = "REDUCE_MAX" } } } }] } }],
+    [24, 80, 24, 16, { title = "Cloud SQL conexiones activas", xyChart = { dataSets = [{ legendTemplate = "postgres", plotType = "LINE", timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"cloudsql.googleapis.com/database/postgresql/num_backends\" ${local.sql_filter}", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MEAN", crossSeriesReducer = "REDUCE_SUM" } } } }] } }],
+
+    [0, 96, 24, 16, local.business_xy.loans_created],
+    [24, 96, 24, 16, local.business_xy.book_lookups],
+  ]
+}
+
+resource "google_monitoring_dashboard" "this" {
+  project = var.project_id
+  dashboard_json = jsonencode({
+    displayName = var.dashboard_name
+    mosaicLayout = {
+      columns = 48
+      tiles   = [for t in local.tiles : { xPos = t[0], yPos = t[1], width = t[2], height = t[3], widget = t[4] }]
+    }
+  })
+}
