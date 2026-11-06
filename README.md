@@ -40,7 +40,7 @@ La API **v3** (stable, `v3.0.2`) y la API **v4** (canary, `v4.0.0`) conviven en 
 | **IAM** | SA runtime (`cloudsql.client`, `secretmanager.secretAccessor`) y SA deployer | Identidad de los servicios y del pipeline (mínimo privilegio) |
 | **Workload Identity Federation** | Pool y provider OIDC de GitHub, limitados al repositorio y a la rama `main` | GitHub Actions se autentica en GCP sin llaves de servicio |
 | **Cloud Storage** | Bucket `biblio-express-tfstate-2026-pholcast` | Estado remoto de Terraform compartido por ambos workflows |
-| **Cloud Monitoring** | Dashboard stable vs canary y alertas del canary | SLI por servicio, alertas de 5xx y p95, y fuente de datos del quality gate |
+| **Cloud Monitoring** | Dashboard stable vs canary (incluye el panel del peso configurado en el URL map por etapa) y alertas del canary | SLI por servicio, alertas de 5xx y p95, y fuente de datos del quality gate |
 | **Cloud Logging** | Logs de petición de Cloud Run y métricas basadas en logs | Métricas de negocio `biblio_loans_created` y `biblio_book_lookups` por track |
 | **Grafana Cloud** (SaaS) | OTLP (métricas y trazas de la app) y datasource de Cloud Monitoring | Dashboard principal stable vs canary en tiempo casi real |
 
@@ -57,7 +57,7 @@ Toda la infraestructura se define en `terraform-gcp/` mediante módulos independ
 | `iam` | `iam.tf` | Service accounts runtime y deployer, roles, pool y provider de Workload Identity Federation |
 | `cloud-run` (×2) | `cloud-run.tf` | Servicios `stable` y `canary` con imagen por digest, versión, track y modo de fallo |
 | `load-balancer` | `load-balancer.tf` | IP global, NEGs, backend services, URL map (pesos y regla `x-canary`), proxy y forwarding rule |
-| `monitoring` | `monitoring.tf` | Dashboard de Cloud Monitoring, alertas del canary, canal de correo y métricas de negocio basadas en logs |
+| `monitoring` | `monitoring.tf` | Dashboard de Cloud Monitoring, alertas del canary, canal de correo, métricas de negocio basadas en logs y el descriptor de la métrica personalizada `canary_traffic_weight` |
 
 Archivos de apoyo:
 - `backend.tf`: backend `gcs`, configurado en `terraform init`.
@@ -121,6 +121,8 @@ En cada etapa, `scripts/run-canary-stages.sh` verifica el reparto de dos formas:
 | 100% | ≥ 95% |
 
 El Load Balancer es global, así que un cambio de pesos tarda unos **2–3 minutos** en propagarse a todos sus frontends. Por eso el script espera esa convergencia en ambas direcciones, subiendo o bajando el porcentaje, y el quality gate siempre compara con el reparto correcto.
+
+El script también publica en Cloud Monitoring el **peso configurado** en el URL map (`custom.googleapis.com/biblio/canary_traffic_weight`, una serie por track). El panel "Peso configurado del canary (%) - URL map" del dashboard de Cloud Monitoring lo muestra como un escalón 0 → 10 → 25 → 100, o la caída a 0 en un rollback, junto a las métricas de stable y canary. La publicación es *best-effort*: si falla, solo se registra un aviso y el despliegue continúa.
 
 ## Plan de etapas y tiempos de observación
 
