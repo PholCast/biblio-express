@@ -845,6 +845,90 @@ PostgreSQL
 - **Services:** contienen acceso a datos y lógica de negocio.
 - **Prisma:** proporciona acceso ORM a PostgreSQL.
 
+# Pruebas
+
+El proyecto utiliza Vitest.
+
+```bash
+pnpm test
+```
+
+Ejecutar una sola vez:
+
+```bash
+pnpm test:run
+```
+
+Ejecutar con cobertura:
+
+```bash
+pnpm test:coverage
+```
+
+Las pruebas cubren controllers, services, schemas y routes.
+
+# Docker
+
+Construir la imagen:
+
+```bash
+docker build -t biblio-express .
+```
+
+Ejecutar el contenedor:
+
+```bash
+docker run --env-file .env -p 3000:3000 biblio-express
+```
+
+El Dockerfile instala las dependencias y ejecuta `prisma generate` durante la construcción de la imagen.
+
+# Entregas pasadas
+
+Esta sección conserva la documentación de los seguimientos anteriores: arquitectura multicloud, despliegue en Azure (ACR/AKS), Object Storage y manifiestos Kubernetes. No forma parte del despliegue canary en GCP del Seguimiento 4.
+
+## Responsables y nubes
+
+La distribución de los componentes transversales se mantiene separada por integrante y proveedor:
+
+| Integrante | Componente | Proveedor de nube |
+|---|---|---|
+| Phol Castañeda | API Biblio Express y Object Storage con su artefacto consumidor | Microsoft Azure |
+| Neithan Gómez | Microservicio orquestador y cola | Amazon Web Services (AWS) |
+| Daniela Higuita | Componente de caché | Google Cloud Platform (GCP) |
+
+Yo Phol Castañeda opero la API biblio-express y el Object Storage en Azure. Neithan Gómez opera el microservicio orquestador y la cola en AWS, mientras Daniela Higuita opera el componente de caché en GCP. Cada componente transversal se despliega en un proveedor distinto según la responsabilidad asignada.
+
+## Diagrama de arquitectura multicloud
+![alt text](arquitectura_multicloud.png)
+
+
+## Despliegue en Azure
+
+La API se publica como `biblio-express` en Azure Container Registry (ACR) y se despliega en Azure Kubernetes Service (AKS) mediante [`.github/workflows/api.yml`](.github/workflows/api.yml). El workflow construye la imagen, confirma su digest en ACR, aplica los manifiestos del clúster y espera el rollout de `biblio-api-v2`. Después comprueba que el Deployment usa exactamente ese digest.
+
+Configura el secreto `AZURE_CREDENTIALS` en GitHub Actions. Los valores de ACR y AKS están definidos en el workflow: `biblioacrphol`, `biblioacrphol.azurecr.io`, `rg-biblio-azure` y `aks-biblio-azure`. `AZURE_CREDENTIALS` debe corresponder a una identidad con permisos para publicar en ACR y administrar el clúster AKS.
+
+Cada componente se versiona con SemVer. Un push a `main` usa una imagen inmutable con tag `sha-<commit>`; una release de API se crea con un tag `api-vMAJOR.MINOR.PATCH`, por ejemplo `api-v1.1.0`. Para volver a una versión anterior se puede ejecutar `kubectl set image` con el tag semántico correspondiente.
+
+
+El workflow no aplica `k8s/secret.yaml`: las credenciales deben existir previamente en AKS y administrarse mediante Azure Key Vault/Secrets Store CSI. No se deben almacenar secretos en el repositorio.
+
+## Object Storage separado
+
+El almacenamiento de artefactos es un microservicio independiente en [`object-storage/README.md`](object-storage/README.md). La API no contiene credenciales ni el SDK de Azure: `sendResponseWithArtifact` conserva la firma usada por los controladores V2 y envía el artefacto completo mediante `POST /artifacts`.
+
+La comunicación dentro del clúster usa `http://object-storage:3001`. El cuerpo conserva las entidades (`book`, `loan` o `user`, además de `pokemon` y `doctor`) y los campos `traceId`, `otelTraceId`, `spanId` y `traceparent`. Si el almacenamiento no está disponible, la API registra el error y mantiene la respuesta de negocio, igual que antes.
+
+El microservicio tiene su propio `Dockerfile`, `package.json`, lockfile, README y pipeline `.github/workflows/object-storage.yml`. Su despliegue y sus manifiestos se documentan en [`object-storage/README.md`](object-storage/README.md).
+
+Variables de entorno de la API relacionadas con el Object Storage:
+
+| Variable | Descripción |
+|---|---|
+| `OBJECT_STORAGE_URL` | URL del microservicio Object Storage; por defecto `http://object-storage:3001` |
+| `OBJECT_STORAGE_TIMEOUT_MS` | Tiempo máximo de espera para guardar un artefacto, en milisegundos; por defecto `5000` |
+
 
 ```text
 biblio-express/
