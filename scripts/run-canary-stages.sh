@@ -55,6 +55,7 @@ rollback() {
     -var="canary_fault_mode=none"; then
     TRAFFIC_MODIFIED=false
     ROLLING_BACK=false
+    set_traffic_weight 0
     return 0
   fi
   echo "Rollback failed."
@@ -72,6 +73,90 @@ handle_unexpected_error() {
 }
 
 trap 'handle_unexpected_error "$?"' ERR
+
+# Peso configurado en el URL map, publicado en Cloud Monitoring como
+# custom.googleapis.com/biblio/canary_traffic_weight (una serie por track) para
+# el panel del dashboard. Todo es best-effort: un fallo solo imprime un aviso y
+# nunca detiene ni revierte el despliegue.
+WEIGHT_FILE=$(mktemp 2>/dev/null || echo "/tmp/canary-weight-$$")
+WEIGHT_HEARTBEAT_PID=""
+
+weight_series_json() {
+  printf '{"metric":{"type":"custom.googleapis.com/biblio/canary_traffic_weight","labels":{"track":"%s"}},"resource":{"type":"global","labels":{"project_id":"%s"}},"metricKind":"GAUGE","valueType":"DOUBLE","points":[{"interval":{"endTime":"%s"},"value":{"doubleValue":%s}}]}' \
+    "$1" "$PROJECT_ID" "$2" "$3"
+}
+
+publish_traffic_weight() {
+  local canary_percent="$1"
+  local now token body status
+
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  token=$(gcloud auth print-access-token 2>/dev/null) || token=""
+  if [ -z "$token" ] || [ -z "${PROJECT_ID:-}" ]; then
+    echo "Warning: could not publish traffic weight (no token or project)."
+    return 0
+  fi
+
+  body="{\"timeSeries\":[$(weight_series_json canary "$now" "$canary_percent"),$(weight_series_json stable "$now" "$((100 - canary_percent))")]}"
+  status=$(curl --silent --max-time 10 -o /dev/null -w "%{http_code}" \
+    -X POST "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/timeSeries" \
+    -H "Authorization: Bearer ${token}" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null) || status="error"
+  if [ "$status" != "200" ]; then
+    echo "Warning: could not publish traffic weight (HTTP ${status})."
+  fi
+  return 0
+}
+
+# Registra el peso vigente; el heartbeat lo publica.
+set_traffic_weight() {
+  echo "$1" > "$WEIGHT_FILE" 2>/dev/null || true
+  return 0
+}
+
+# Proceso en segundo plano (único escritor de la métrica): publica cuando el
+# peso cambia y, si no, cada 30 s, para que la línea del panel sea continua.
+# Respeta el límite de Cloud Monitoring de un punto cada 5 s por serie.
+start_weight_heartbeat() {
+  (
+    set +e
+    trap - ERR
+    last_value=""
+    last_publish=0
+    while true; do
+      value=$(cat "$WEIGHT_FILE" 2>/dev/null)
+      now=$(date +%s)
+      if [ -n "$value" ] && { [ "$value" != "$last_value" ] || [ $((now - last_publish)) -ge 30 ]; }; then
+        publish_traffic_weight "$value"
+        last_value="$value"
+        last_publish=$now
+      fi
+      sleep 10
+    done
+  ) &
+  WEIGHT_HEARTBEAT_PID=$!
+}
+
+# Al terminar: detiene el heartbeat y publica el último peso (p. ej. el 0 de un
+# rollback) para que el panel refleje el estado final.
+stop_weight_heartbeat() {
+  if [ -n "$WEIGHT_HEARTBEAT_PID" ]; then
+    kill "$WEIGHT_HEARTBEAT_PID" 2>/dev/null || true
+    WEIGHT_HEARTBEAT_PID=""
+    local final
+    final=$(cat "$WEIGHT_FILE" 2>/dev/null) || final=""
+    if [ -n "$final" ]; then
+      sleep 5 || true
+      publish_traffic_weight "$final" || true
+    fi
+  fi
+  rm -f "$WEIGHT_FILE" 2>/dev/null || true
+  return 0
+}
+
+trap 'stop_weight_heartbeat' EXIT
+start_weight_heartbeat
 
 wait_for_traffic_split() {
   local canary_percent="$1"
@@ -191,6 +276,7 @@ run_stage() {
     rollback
     return 3
   fi
+  set_traffic_weight "$canary_percent"
 
   if [ "$stage" = "0" ]; then
     if ! wait_for_public_stable; then
