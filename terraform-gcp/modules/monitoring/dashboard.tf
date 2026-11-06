@@ -95,7 +95,7 @@ locals {
 
     | Decisión | Condición |
     |---|---|
-    | promote | canary 5xx ≤ 1%, 4xx ≤ 5%, p95 ≤ 500 ms y p95 ≤ stable + 20% |
+    | promote | canary 5xx ≤ 1%, 4xx ≤ stable + 5 pp, p95 ≤ 500 ms y p95 ≤ stable + 20% |
     | pause | volumen insuficiente o baseline stable no saludable (reintenta hasta 3 veces) |
     | abort | canary viola 5xx, 4xx o p95: rollback a 100% stable / 0% canary |
 

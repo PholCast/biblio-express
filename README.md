@@ -231,7 +231,7 @@ Los umbrales están **definidos y versionados antes del despliegue** en `observa
 | `windowSeconds` | 120 | Ventana de observación del quality gate (stable y canary en la misma ventana) |
 | `minimumRequestsPerTrack` | 100 | Volumen mínimo por track para que la comparación sea representativa |
 | `max5xxRate` | 0.01 | Máximo 1% de respuestas 5xx en el canary |
-| `max4xxRate` | 0.05 | Máximo 5% de respuestas 4xx en el canary |
+| `max4xxRateIncrease` | 0.05 | La tasa de 4xx del canary no puede superar en más de 5 puntos porcentuales a la del stable (baseline). Se compara contra el baseline porque el tráfico externo, como los escáneres que piden rutas inexistentes, genera 404 en ambos tracks por igual |
 | `maxP95LatencyMs` | 500 | Latencia p95 máxima del canary |
 | `maxP95RegressionPercent` | 20 | El p95 del canary no puede superar en más de un 20% al del stable (baseline) |
 
@@ -245,10 +245,11 @@ Los umbrales están **definidos y versionados antes del despliegue** en `observa
 |---|---|---|
 | 1 | Configuración del SLO inválida, falta un track o las ventanas no coinciden | `pause` |
 | 2 | Algún track con menos de `minimumRequestsPerTrack` peticiones | `pause` (volumen insuficiente) |
-| 3 | Canary con 5xx > 1%, 4xx > 5% o p95 > 500 ms | **`abort`** |
-| 4 | El stable (baseline) supera 5xx > 1% o p95 > 500 ms: comparación no concluyente | `pause` |
-| 5 | p95 del canary > p95 del stable × 1.20 | **`abort`** (regresión frente al baseline) |
-| 6 | Todo lo anterior se cumple | **`promote`** |
+| 3 | Canary con 5xx > 1% o p95 > 500 ms | **`abort`** |
+| 4 | 4xx del canary > 4xx del stable + 5 puntos porcentuales | **`abort`** (regresión de 4xx frente al baseline) |
+| 5 | El stable (baseline) supera 5xx > 1% o p95 > 500 ms: comparación no concluyente | `pause` |
+| 6 | p95 del canary > p95 del stable × 1.20 | **`abort`** (regresión frente al baseline) |
+| 7 | Todo lo anterior se cumple | **`promote`** |
 
 4. **Acción** (`scripts/run-canary-stages.sh`):
 
