@@ -19,9 +19,9 @@ export const evaluateCanary = (snapshot, slo) => {
     !Number.isFinite(slo.max5xxRate) ||
     slo.max5xxRate < 0 ||
     slo.max5xxRate > 1 ||
-    !Number.isFinite(slo.max4xxRate) ||
-    slo.max4xxRate < 0 ||
-    slo.max4xxRate > 1 ||
+    !Number.isFinite(slo.max4xxRateIncrease) ||
+    slo.max4xxRateIncrease < 0 ||
+    slo.max4xxRateIncrease > 1 ||
     !Number.isFinite(slo.maxP95LatencyMs) ||
     slo.maxP95LatencyMs <= 0 ||
     !Number.isFinite(slo.maxP95RegressionPercent) ||
@@ -96,11 +96,16 @@ export const evaluateCanary = (snapshot, slo) => {
   // Primero comprobar los límites absolutos del canary.
   if (
     canary5xxRate > slo.max5xxRate ||
-    canary4xxRate > slo.max4xxRate ||
     canary.p95LatencyMs > slo.maxP95LatencyMs
   ) {
     return abort(
       'Canary violates an absolute error or latency threshold',
+    );
+  }
+
+  if (canary4xxRate > stable4xxRate + slo.max4xxRateIncrease) {
+    return abort(
+      'Canary 4xx rate exceeds the stable baseline beyond the allowed increase',
     );
   }
 
