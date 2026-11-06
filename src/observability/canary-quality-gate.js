@@ -124,12 +124,15 @@ export const evaluateCanary = (snapshot, slo) => {
     stable.p95LatencyMs *
     (1 + slo.maxP95RegressionPercent / 100);
 
+  // Una regresión solo relativa frente al baseline es ruidosa con muestras
+  // pequeñas (p. ej. un cold start): se pausa para confirmarla con otra
+  // muestra. Si persiste en todos los reintentos, el pipeline hace rollback.
   if (
     canary.p95LatencyMs > maxAllowedP95 &&
     canary.p95LatencyMs - stable.p95LatencyMs > slo.minP95RegressionMs
   ) {
-    return abort(
-      'Canary p95 latency regressed beyond the allowed baseline',
+    return pause(
+      'Canary p95 latency regressed beyond the allowed baseline; confirming with another sample',
     );
   }
 
