@@ -146,7 +146,33 @@ locals {
 
     [0, 96, 24, 16, local.business_xy.loans_created],
     [24, 96, 24, 16, local.business_xy.book_lookups],
+
+    [0, 112, 48, 16, { title = "Peso configurado del canary (%) - URL map", xyChart = {
+      yAxis = { label = "% tráfico configurado", scale = "LINEAR" }
+      dataSets = [{
+        legendTemplate  = "$${metric.labels.track}"
+        plotType        = "LINE"
+        timeSeriesQuery = { timeSeriesFilter = { filter = "metric.type=\"${google_monitoring_metric_descriptor.canary_traffic_weight.type}\" resource.type=\"global\"", aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MAX", crossSeriesReducer = "REDUCE_MAX", groupByFields = ["metric.label.track"] } } }
+      }]
+    } }],
   ]
+}
+
+# Peso configurado en el URL map por track; lo publica scripts/run-canary-stages.sh.
+resource "google_monitoring_metric_descriptor" "canary_traffic_weight" {
+  project      = var.project_id
+  type         = "custom.googleapis.com/biblio/canary_traffic_weight"
+  metric_kind  = "GAUGE"
+  value_type   = "DOUBLE"
+  unit         = "%"
+  display_name = "Canary configured traffic weight"
+  description  = "Porcentaje de tráfico público configurado en el URL map para cada track."
+
+  labels {
+    key         = "track"
+    value_type  = "STRING"
+    description = "stable o canary"
+  }
 }
 
 resource "google_monitoring_dashboard" "this" {
