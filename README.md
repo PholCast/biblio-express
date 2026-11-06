@@ -4,20 +4,48 @@ API RESTful para la gestión de una biblioteca, desarrollada con **Node.js**, **
 
 La API administra tres entidades: **Users**, **Books** y **Loans**, e implementa el método HTTP **QUERY** para consultas mediante criterios enviados en el cuerpo de la petición.
 
-## Responsables y nubes
+# Seguimiento 4: Canary Deployment en Google Cloud
 
-La distribución de los componentes transversales se mantiene separada por integrante y proveedor:
+La API **v3** (stable, `v3.0.2`) y la API **v4** (canary, `v4.0.0`) conviven en producción en **Google Cloud Platform (GCP)**. Un Application Load Balancer reparte el tráfico público entre ambas versiones por etapas progresivas, y un *quality gate* automático decide si el canary avanza, se pausa o se aborta (rollback inmediato al 100% stable).
 
-| Integrante | Componente | Proveedor de nube |
+| Aspecto | Implementación |
+|---|---|
+| Proveedor de nube | Google Cloud Platform: proyecto `biblio-express-canary-2026`, región `us-central1` |
+| Cómputo | Cloud Run: un servicio por track (`biblio-express-demo-stable` y `biblio-express-demo-canary`) |
+| Enrutamiento | Application Load Balancer global con URL map ponderado más una regla por cabecera `x-canary: true` |
+| Infraestructura como código | Terraform (`terraform-gcp/`) con estado remoto en Cloud Storage |
+| CI/CD | GitHub Actions (`gcp-infrastructure.yml`, `gcp-canary.yml`) autenticado con Workload Identity Federation (OIDC, sin llaves JSON) |
+| Observabilidad | Cloud Monitoring y Cloud Logging (nativos) más Grafana Cloud (OpenTelemetry y datasource de Cloud Monitoring) |
+
+## Diagrama de arquitectura del despliegue canary
+
+**Vista simplificada:**
+
+![Arquitectura canary en GCP (vista simplificada)](arquitectura-canary-gcp-simple.png)
+
+**Vista detallada** (recursos de Terraform, pipelines, identidad, observabilidad y plan de etapas):
+
+![Arquitectura canary en GCP (vista detallada)](arquitectura-canary-gcp.png)
+
+## Componentes de la arquitectura
+
+| Servicio de GCP | Recurso | Función en el canary |
 |---|---|---|
-| Phol Castañeda | API Biblio Express y Object Storage con su artefacto consumidor | Microsoft Azure |
-| Neithan Gómez | Microservicio orquestador y cola | Amazon Web Services (AWS) |
-| Daniela Higuita | Componente de caché | Google Cloud Platform (GCP) |
+| **Cloud Load Balancing** (Application Load Balancer global, `EXTERNAL_MANAGED`) | IP global `biblio-express-demo-ip`, forwarding rule `:80`, target HTTP proxy y URL map `biblio-express-demo-url-map` | Punto de entrada único. El URL map reparte el tráfico público entre stable y canary por pesos y envía al canary las peticiones con `x-canary: true` |
+| **Serverless NEG** y **Backend services** | `…-stable-neg` / `…-canary-neg` y `…-stable-backend` / `…-canary-backend` | Conectan el Load Balancer con cada servicio de Cloud Run |
+| **Cloud Run** | `biblio-express-demo-stable` (v3.0.2) y `biblio-express-demo-canary` (v4.0.0) | Ejecutan la API por separado. Puerto 3000, de 0 a 10 instancias y variables `APP_VERSION` / `APP_TRACK`. Solo el canary tiene activable la inyección de fallos |
+| **Cloud SQL** | PostgreSQL 16 `db-f1-micro`, zonal, con backups y PITR; base `bibliodb` | Base de datos **compartida** por v3 y v4 (conexión por socket `/cloudsql`) |
+| **Secret Manager** | `database-url`, `canary-fault-token`, `otel-endpoint`, `otel-headers` | Secretos inyectados en Cloud Run; nunca se guardan en el repositorio |
+| **Artifact Registry** | Repositorio Docker `biblio-api` | Imágenes inmutables de v3 y v4, desplegadas por digest `@sha256` |
+| **IAM** | SA runtime (`cloudsql.client`, `secretmanager.secretAccessor`) y SA deployer | Identidad de los servicios y del pipeline (mínimo privilegio) |
+| **Workload Identity Federation** | Pool y provider OIDC de GitHub, limitados al repositorio y a la rama `main` | GitHub Actions se autentica en GCP sin llaves de servicio |
+| **Cloud Storage** | Bucket `biblio-express-tfstate-2026-pholcast` | Estado remoto de Terraform compartido por ambos workflows |
+| **Cloud Monitoring** | Dashboard stable vs canary y alertas del canary | SLI por servicio, alertas de 5xx y p95, y fuente de datos del quality gate |
+| **Cloud Logging** | Logs de petición de Cloud Run y métricas basadas en logs | Métricas de negocio `biblio_loans_created` y `biblio_book_lookups` por track |
+| **Grafana Cloud** (SaaS) | OTLP (métricas y trazas de la app) y datasource de Cloud Monitoring | Dashboard principal stable vs canary en tiempo casi real |
 
-Yo Phol Castañeda opero la API biblio-express y el Object Storage en Azure. Neithan Gómez opera el microservicio orquestador y la cola en AWS, mientras Daniela Higuita opera el componente de caché en GCP. Cada componente transversal se despliega en un proveedor distinto según la responsabilidad asignada.
+## Infraestructura como código (Terraform)
 
-## Diagrama de arquitectura multicloud
-![alt text](arquitectura_multicloud.png)
 
 
 
