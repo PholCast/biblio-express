@@ -10,7 +10,9 @@ resource "google_cloud_run_v2_service" "this" {
     timeout         = "60s"
 
     scaling {
-      min_instance_count = 0
+      # Una instancia siempre caliente: evita cold starts que distorsionen
+      # la latencia p95 que compara el quality gate.
+      min_instance_count = 1
       max_instance_count = 10
     }
 
