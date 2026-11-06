@@ -33,7 +33,7 @@ La API **v3** (stable, `v3.0.2`) y la API **v4** (canary, `v4.0.0`) conviven en 
 |---|---|---|
 | **Cloud Load Balancing** (Application Load Balancer global, `EXTERNAL_MANAGED`) | IP global `biblio-express-demo-ip`, forwarding rule `:80`, target HTTP proxy y URL map `biblio-express-demo-url-map` | Punto de entrada único. El URL map reparte el tráfico público entre stable y canary por pesos y envía al canary las peticiones con `x-canary: true` |
 | **Serverless NEG** y **Backend services** | `…-stable-neg` / `…-canary-neg` y `…-stable-backend` / `…-canary-backend` | Conectan el Load Balancer con cada servicio de Cloud Run |
-| **Cloud Run** | `biblio-express-demo-stable` (v3.0.2) y `biblio-express-demo-canary` (v4.0.0) | Ejecutan la API por separado. Puerto 3000, de 0 a 10 instancias y variables `APP_VERSION` / `APP_TRACK`. Solo el canary tiene activable la inyección de fallos |
+| **Cloud Run** | `biblio-express-demo-stable` (v3.0.2) y `biblio-express-demo-canary` (v4.0.0) | Ejecutan la API por separado. Puerto 3000, de 1 a 10 instancias (una siempre caliente para evitar cold starts que distorsionen el p95) y variables `APP_VERSION` / `APP_TRACK`. Solo el canary tiene activable la inyección de fallos |
 | **Cloud SQL** | PostgreSQL 16 `db-f1-micro`, zonal, con backups y PITR; base `bibliodb` | Base de datos **compartida** por v3 y v4 (conexión por socket `/cloudsql`) |
 | **Secret Manager** | `database-url`, `canary-fault-token`, `otel-endpoint`, `otel-headers` | Secretos inyectados en Cloud Run; nunca se guardan en el repositorio |
 | **Artifact Registry** | Repositorio Docker `biblio-api` | Imágenes inmutables de v3 y v4, desplegadas por digest `@sha256` |
@@ -233,8 +233,8 @@ Los umbrales están **definidos y versionados antes del despliegue** en `observa
 | `max5xxRate` | 0.01 | Máximo 1% de respuestas 5xx en el canary |
 | `max4xxRateIncrease` | 0.05 | La tasa de 4xx del canary no puede superar en más de 5 puntos porcentuales a la del stable (baseline). Se compara contra el baseline porque el tráfico externo, como los escáneres que piden rutas inexistentes, genera 404 en ambos tracks por igual |
 | `maxP95LatencyMs` | 500 | Latencia p95 máxima del canary |
-| `maxP95RegressionPercent` | 20 | El p95 del canary no puede superar en más de un 20% al del stable (baseline) |
-| `minP95RegressionMs` | 100 | Tolerancia absoluta: la regresión de p95 solo cuenta si además el canary es más de 100 ms más lento que el stable. Evita abortos por la variación estadística del p95 con muestras pequeñas |
+| `maxP95RegressionPercent` | 20 | El p95 del canary no puede superar en más de un 20% al del stable (baseline). Si lo hace, el gate pausa y confirma con otra muestra |
+| `minP95RegressionMs` | 100 | Tolerancia absoluta: la regresión de p95 solo cuenta si además el canary es más de 100 ms más lento que el stable. Evita falsos positivos por la variación estadística del p95 con muestras pequeñas |
 
 **Cómo se usan en cada etapa** (1 y 2):
 
@@ -249,7 +249,7 @@ Los umbrales están **definidos y versionados antes del despliegue** en `observa
 | 3 | Canary con 5xx > 1% o p95 > 500 ms | **`abort`** |
 | 4 | 4xx del canary > 4xx del stable + 5 puntos porcentuales | **`abort`** (regresión de 4xx frente al baseline) |
 | 5 | El stable (baseline) supera 5xx > 1% o p95 > 500 ms: comparación no concluyente | `pause` |
-| 6 | p95 del canary > p95 del stable × 1.20 **y** más de 100 ms por encima del stable | **`abort`** (regresión frente al baseline) |
+| 6 | p95 del canary > p95 del stable × 1.20 **y** más de 100 ms por encima del stable | `pause` (regresión relativa frente al baseline: se confirma con otra muestra) |
 | 7 | Todo lo anterior se cumple | **`promote`** |
 
 4. **Acción** (`scripts/run-canary-stages.sh`):
@@ -257,7 +257,7 @@ Los umbrales están **definidos y versionados antes del despliegue** en `observa
 | Resultado | Código | Acción |
 |---|---|---|
 | `promote` | exit 0 | Pasa a la siguiente etapa |
-| `pause` | exit 1 | Toma una nueva muestra (hasta 3 intentos). Si sigue en pausa, hace rollback |
+| `pause` | exit 1 | Toma una nueva muestra (hasta 3 intentos). Si sigue en pausa, hace rollback. Así, una regresión relativa de p95 solo revierte si se repite en todas las muestras |
 | `abort` | exit 2 | **Rollback inmediato:** `terraform apply` con canary 0% / stable 100% y fallos desactivados |
 | Error interno | exit 3 | Rollback |
 

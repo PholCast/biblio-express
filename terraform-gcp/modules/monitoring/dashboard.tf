@@ -96,8 +96,8 @@ locals {
     | Decisión | Condición |
     |---|---|
     | promote | canary 5xx ≤ 1%, 4xx ≤ stable + 5 pp, p95 ≤ 500 ms y p95 ≤ stable + 20% o ≤ stable + 100 ms |
-    | pause | volumen insuficiente o baseline stable no saludable (reintenta hasta 3 veces) |
-    | abort | canary viola 5xx, 4xx o p95: rollback a 100% stable / 0% canary |
+    | pause | volumen insuficiente, baseline stable no saludable o regresión relativa de p95 (reintenta hasta 3 veces; si persiste, rollback) |
+    | abort | canary viola 5xx > 1%, 4xx frente al stable o p95 > 500 ms: rollback a 100% stable / 0% canary |
 
     Etapas: 0 (0% público, solo x-canary: true), 1 (10%), 2 (25%) y 3 (100%).
     Negocio en GCP: préstamos creados y consultas de libro (métricas basadas en logs).
