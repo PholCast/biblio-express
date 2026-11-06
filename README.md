@@ -122,6 +122,91 @@ En cada etapa, `scripts/run-canary-stages.sh` verifica el reparto de dos formas:
 
 El Load Balancer es global, así que un cambio de pesos tarda unos **2–3 minutos** en propagarse a todos sus frontends. Por eso el script espera esa convergencia en ambas direcciones, subiendo o bajando el porcentaje, y el quality gate siempre compara con el reparto correcto.
 
+## Plan de etapas y tiempos de observación
+
+| Etapa | Canary | Stable | Acceso al canary | Bake time | Observación / decisión |
+|---|---|---|---|---|---|
+| **0** | 0% | 100% | Solo internas con `x-canary: true` | — | Espera a que el 100% del tráfico público vuelva al stable. Ráfaga de 30 peticiones con `x-canary` que deben ir **todas** al canary (smoke test) |
+| **1** | 10% | 90% | Público por peso | `bake_time_seconds` | Quality gate: carga concurrente durante **120 s** con ≥100 peticiones por track → promote / pause / abort |
+| **2** | 25% | 75% | Público por peso | `bake_time_seconds` | Quality gate igual que en la Etapa 1. Si promueve, guarda la aprobación (`stage-2-approved.json`) |
+| **3** | **100%** (promovido) | 0% | Público por peso | `bake_time_seconds` | Exige la aprobación de la Etapa 2. Verifica el URL map en canary 100 / stable 0 y la convergencia ≥95% |
+
+**Tiempos de observación:**
+
+| Contexto | Bake por etapa | Notas |
+|---|---|---|
+| Por defecto del workflow | **300 s** | Valor de `bake_time_seconds` si no se cambia |
+| Demostraciones de este proyecto | **60 s** | Para que una ejecución completa dure unos **18–20 minutos** |
+| Producción real (recomendado) | 15–30 min o más | Configurable con el mismo parámetro |
+
+Además del bake, cada etapa incluye la propagación del Load Balancer (unos 2–3 min) y la **ventana fija de 120 s** del quality gate.
+
+**Modos de ejecución:**
+- `automatic`: recorre todas las etapas y se detiene en el primer `abort`.
+- `manual`: permite avanzar etapa por etapa. La Etapa 3 manual solo se ejecuta si existe la aprobación de la Etapa 2 **del mismo commit**.
+
+## Versión y track en todas las respuestas
+
+El middleware `src/middlewares/api-metadata.js` añade la versión y el track a **todas** las respuestas, incluidas `/health` y los 404:
+
+| Dónde | Campos |
+|---|---|
+| Cabeceras HTTP | `X-App-Version` (versión desplegada, p. ej. `3.0.2` / `4.0.0`), `X-App-Track` (`stable` / `canary`) y, en `/api/*`, `X-API-Version` (`3.0.0` / `4.0.0`) |
+| Cuerpo JSON de `/api/*` | `apiVersion`, `appVersion` y `track` |
+| `GET /health` | `{ "status": "ok", "appVersion": "…", "track": "…" }` |
+
+```http
+HTTP/1.1 200 OK
+x-app-version: 4.0.0
+x-app-track: canary
+x-api-version: 4.0.0
+```
+
+## Cambios funcionales de api/v4
+
+La v4 (`src/routes/api.v4.routes.js`) agrega información derivada sobre las entidades existentes **sin modificar el esquema de la base de datos**:
+
+| Endpoint | Cambio en v4 | Implementación |
+|---|---|---|
+| `GET /api/v4/books/:id` | Devuelve el libro y su **disponibilidad**: `availability.isAvailable` es `true` si no tiene préstamos activos (`returnedAt = null`) | `src/modules/books/book.v4.controller.js`, `book.v4.service.js` |
+| `GET /api/v4/users/:id` | Devuelve el usuario y un **resumen de préstamos**: `loans.hasActiveLoans` y `loans.activeLoans` | `src/modules/users/user.v4.controller.js`, `user.v4.service.js` |
+| Resto de `/api/v4/*` | Reutiliza las rutas existentes (`*.common.routes.js` y préstamos) | — |
+
+```json
+// GET /api/v4/books/1 (canary)
+{
+  "apiVersion": "4.0.0",
+  "appVersion": "4.0.0",
+  "track": "canary",
+  "book": { "id": 1, "title": "Cien años de soledad", "author": "Gabriel García Márquez", "isbn": "978-958-2026-001" },
+  "availability": { "isAvailable": true }
+}
+```
+
+```json
+// GET /api/v4/users/1 (canary)
+{
+  "apiVersion": "4.0.0",
+  "appVersion": "4.0.0",
+  "track": "canary",
+  "user": { "id": 1, "name": "…", "email": "…" },
+  "loans": { "hasActiveLoans": true, "activeLoans": 1 }
+}
+```
+
+El canary también incluye la **inyección controlada de fallos** (`src/middlewares/canary-fault.js`). Solo actúa cuando `APP_TRACK=canary`, así que el código del stable no se ve afectado. Se activa con `CANARY_FAULT_MODE` (`error` → HTTP 500, `latency` → +2000 ms) y `CANARY_FAULT_RATE`, o en pruebas manuales con la cabecera `x-canary-fault` y su token. En ambos casos requiere `CANARY_FAULTS_ENABLED=true`; sin esa variable el middleware ignora los fallos y la cabecera.
+
+## Compatibilidad de datos (Expand/Contract)
+
+v3 y v4 comparten la misma base de datos (`bibliodb` en Cloud SQL), así que ninguna versión rompe el esquema que usa la otra. Ambas versiones leen y escriben sobre las mismas tablas. Las nuevas funcionalidades de v4, como availability y el resumen de loans, se obtienen mediante cálculos y consultas sobre las tablas existentes Book y Loan. Por lo tanto, no se realizaron modificaciones al esquema de la base de datos, garantizando que v3 y v4 puedan operar simultáneamente sin conflictos a nivel de estructura de datos.
+
+Aplicado al patrón Expand/Contract:
+
+| Fase | Qué ocurrió de v3 a v4 |
+|---|---|
+| **Expand** | No fue necesaria. v4 no agrega tablas ni columnas: `availability` y el resumen de `loans` se calculan a partir de las tablas existentes `Book` y `Loan` |
+| **Contract** | No se aplicó. No se eliminó ni renombró ninguna tabla o columna, así que v3 sigue usando exactamente el mismo esquema |
+| **Rollback** | Es seguro: al volver al 100% stable (v3) no hay que revertir migraciones ni datos, porque el esquema no cambió |
 
 
 
