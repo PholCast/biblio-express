@@ -46,6 +46,82 @@ La API **v3** (stable, `v3.0.2`) y la API **v4** (canary, `v4.0.0`) conviven en 
 
 ## Infraestructura como código (Terraform)
 
+Toda la infraestructura se define en `terraform-gcp/` mediante módulos independientes que se componen en el módulo raíz:
+
+| Módulo (`terraform-gcp/modules/`) | Archivo raíz | Recursos principales |
+|---|---|---|
+| `project` | `project.tf` | Proyecto (opcional) y APIs requeridas (Cloud Run, Compute, Cloud SQL, Secret Manager, Monitoring, Logging, IAM, STS…) |
+| `artifact-registry` | `artifact-registry.tf` | Repositorio Docker `biblio-api` |
+| `cloud-sql` | `sql.tf` | Instancia PostgreSQL 16, base `bibliodb` y usuario `biblioapp` |
+| `secrets` | `secrets.tf` | Secretos y sus versiones |
+| `iam` | `iam.tf` | Service accounts runtime y deployer, roles, pool y provider de Workload Identity Federation |
+| `cloud-run` (×2) | `cloud-run.tf` | Servicios `stable` y `canary` con imagen por digest, versión, track y modo de fallo |
+| `load-balancer` | `load-balancer.tf` | IP global, NEGs, backend services, URL map (pesos y regla `x-canary`), proxy y forwarding rule |
+| `monitoring` | `monitoring.tf` | Dashboard de Cloud Monitoring, alertas del canary, canal de correo y métricas de negocio basadas en logs |
+
+Archivos de apoyo:
+- `backend.tf`: backend `gcs`, configurado en `terraform init`.
+- `variables.tf` y `terraform.tfvars.example`: incluyen `stable_traffic_percent`, `canary_traffic_percent`, `canary_fault_mode` y `canary_fault_rate`.
+- `outputs.tf`.
+- Scripts `bootstrap-state.ps1` (crea el bucket de estado), `preflight.ps1` (verificaciones previas) y `destroy.ps1`.
+
+## CI/CD con GitHub Actions
+
+| Workflow | Disparo | Qué hace |
+|---|---|---|
+| `.github/workflows/gcp-infrastructure.yml` | Push a `main` con cambios en `terraform-gcp/**`, o manual | `terraform validate` y `apply -target` de `project`, `artifact_registry`, `cloud_sql`, `secrets` e `iam` |
+| `.github/workflows/gcp-canary.yml` | Push a `main` con cambios en `src/`, `prisma/`, `Dockerfile`, `package.json`… (ejecuta la **Etapa 0**), o manual con parámetros | Construye las imágenes, despliega y ejecuta las etapas del canary con su quality gate |
+
+`gcp-canary.yml` tiene dos jobs:
+1. **`wait-infrastructure`**: en un push, espera a que termine `gcp-infrastructure.yml` del mismo commit.
+2. **`deploy`**:
+   - reutiliza la imagen stable `v3.0.2` (o la construye si no existe);
+   - construye y publica la canary `v4.0.0-<sha12>`;
+   - valida que ambas referencias usen `@sha256`;
+   - ejecuta `scripts/run-canary-stages.sh`;
+   - si el job falla, aplica un rollback de emergencia (100% stable, fallos desactivados).
+
+Parámetros de ejecución manual:
+
+| Input | Valores | Uso |
+|---|---|---|
+| `promotion_mode` | `automatic` / `manual` | `automatic` recorre las etapas 0 → 1 → 2 → 3; `manual` ejecuta solo la etapa indicada |
+| `deployment_stage` | `0`, `1`, `2`, `3` | Etapa a ejecutar en modo `manual` |
+| `bake_time_seconds` | número (por defecto 300) | Tiempo de horneado de las etapas 1, 2 y 3 |
+| `canary_fault_mode` | `none` / `error` / `latency` | Regresión simulada solo en el canary (HTTP 500 o +2 s de latencia) |
+| `canary_fault_rate` | 0–100 (por defecto 25) | Porcentaje de peticiones `/api` del canary afectadas |
+
+### Artefacto inmutable
+
+- La imagen stable se identifica por el tag `v3.0.2`, y la canary por `v4.0.0-<sha12 del commit>`. Ambas **se despliegan por digest** (`…/biblio-api@sha256:…`), nunca por un tag mutable como `latest`.
+- La Etapa 3 en modo manual no reconstruye imágenes. Promueve **exactamente los digests aprobados en la Etapa 2**, que se guardan en el artifact `canary-stage-2-approved-<commit>` de GitHub Actions.
+
+## Mecanismo de enrutamiento de tráfico
+
+El URL map del Load Balancer (`terraform-gcp/modules/load-balancer/main.tf`) combina dos reglas:
+
+1. **Reparto ponderado (tráfico público).** `weighted_backend_services` envía `100 − N %` al backend stable y `N %` al backend canary, con `N` según la etapa: 0, 10, 25 o 100. Los pesos se cambian con `terraform apply` sobre las variables `stable_traffic_percent` y `canary_traffic_percent`.
+2. **Regla por cabecera (pruebas internas).** Una `route_rule` de prioridad 1 con `header_matches` envía **siempre al canary** las peticiones con `x-canary: true`, sea cual sea el peso público. Así funciona la Etapa 0: 0% público y acceso exclusivo para pruebas internas.
+
+```bash
+# Tráfico público: lo atiende el track que corresponda según el peso de la etapa
+curl -i http://136.82.36.236/api/v3/books
+# Prueba interna: siempre lo atiende el canary (v4)
+curl -i -H "x-canary: true" http://136.82.36.236/api/v4/books/1
+```
+
+En cada etapa, `scripts/run-canary-stages.sh` verifica el reparto de dos formas:
+- **Configuración (determinista):** lee el URL map aplicado con `gcloud compute url-maps describe` y exige los pesos exactos de la etapa. En la Etapa 3, por ejemplo, canary 100 / stable 0.
+- **Convergencia observada:** envía 200 peticiones a `/health` por el Load Balancer y espera a que el reparto observado esté cerca del objetivo antes de hornear:
+
+| Objetivo | Rango aceptado |
+|---|---|
+| 10% | 6–18% |
+| 25% | 15–45% |
+| 100% | ≥ 95% |
+
+El Load Balancer es global, así que un cambio de pesos tarda unos **2–3 minutos** en propagarse a todos sus frontends. Por eso el script espera esa convergencia en ambas direcciones, subiendo o bajando el porcentaje, y el quality gate siempre compara con el reparto correcto.
+
 
 
 
