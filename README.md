@@ -929,6 +929,23 @@ Variables de entorno de la API relacionadas con el Object Storage:
 | `OBJECT_STORAGE_URL` | URL del microservicio Object Storage; por defecto `http://object-storage:3001` |
 | `OBJECT_STORAGE_TIMEOUT_MS` | Tiempo máximo de espera para guardar un artefacto, en milisegundos; por defecto `5000` |
 
+## Kubernetes de la API
+
+Los manifiestos de la API están en `k8s/` y se aplican al namespace `biblio`:
+
+- `namespace.yaml`: crea el namespace del sistema.
+- `configmap.yaml`: configuración no sensible de la API, incluido `OBJECT_STORAGE_URL`.
+- `service-account.yaml`: identidad administrada de la API para Azure Workload Identity.
+- `secret-provider-class.yaml`: integración con Azure Key Vault mediante Secrets Store CSI.
+- `secret.yaml`: referencia local de secretos; no se aplica desde el workflow ni debe contener credenciales en el repositorio.
+- `deployment.yaml`: despliega `biblio-api-v2`, sus variables, probes, recursos y volumen CSI.
+- `service.yaml`: expone la API dentro del clúster mediante un servicio `ClusterIP`.
+- `hpa.yaml`: configura el escalado horizontal del Deployment.
+- `ingress.yaml`: publica el tráfico HTTP externo hacia el servicio de la API.
+
+El workflow de la API aplica estos manifiestos en AKS y fija la imagen por digest después de publicarla en Azure Container Registry.
+
+## Estructura del proyecto
 
 ```text
 biblio-express/
@@ -1002,55 +1019,17 @@ biblio-express/
 └── vitest.config.js
 ```
 
-# Pruebas
-
-El proyecto utiliza Vitest.
-
-```bash
-pnpm test
-```
-
-Ejecutar una sola vez:
-
-```bash
-pnpm test:run
-```
-
-Ejecutar con cobertura:
-
-```bash
-pnpm test:coverage
-```
-
-Las pruebas cubren controllers, services, schemas y routes.
-
-# Docker
-
-Construir la imagen:
-
-```bash
-docker build -t biblio-express .
-```
-
-Ejecutar el contenedor:
-
-```bash
-docker run --env-file .env -p 3000:3000 biblio-express
-```
-
-El Dockerfile instala las dependencias y ejecuta `prisma generate` durante la construcción de la imagen.
-
-# CI/CD
+## CI/CD en Azure
 
 GitHub Actions automatiza la construcción, publicación y despliegue de cada componente en Azure.
 
-## API
+### API
 
 Workflow: `.github/workflows/api.yml`.
 
 Se ejecuta con cambios en la API, Prisma, Docker o sus manifiestos Kubernetes, además de permitir ejecución manual. Publica `biblio-express` en Azure Container Registry, aplica los manifiestos de `k8s/` y espera el rollout de `biblio-api-v2` en AKS.
 
-## Object Storage
+### Object Storage
 
 Workflow: `.github/workflows/object-storage.yml`.
 
