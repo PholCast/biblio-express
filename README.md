@@ -365,46 +365,18 @@ Con `PORT=3000`, la aplicación queda disponible en `http://localhost:3000`.
 |---|---|
 | `PORT` | Puerto del servidor |
 | `DATABASE_URL` | URL de conexión a PostgreSQL |
-| `OBJECT_STORAGE_URL` | URL del microservicio Object Storage; por defecto `http://object-storage:3001` |
-| `OBJECT_STORAGE_TIMEOUT_MS` | Tiempo máximo de espera para guardar un artefacto, en milisegundos; por defecto `5000` |
+| `APP_VERSION` | Versión desplegada que se devuelve en `X-App-Version` (p. ej. `3.0.2` o `4.0.0`) |
+| `APP_TRACK` | Track que atiende la petición, devuelto en `X-App-Track` (`stable` o `canary`) |
+| `CANARY_FAULTS_ENABLED` | Habilita la inyección de fallos; solo tiene efecto con `APP_TRACK=canary` |
+| `CANARY_FAULT_MODE` | Regresión simulada: `none`, `error` (HTTP 500) o `latency` |
+| `CANARY_FAULT_RATE` | Porcentaje de peticiones `/api` del canary afectadas (por defecto `25`) |
+| `CANARY_FAULT_LATENCY_MS` | Retraso inyectado en el modo `latency` (por defecto `2000`) |
+| `CANARY_FAULT_TOKEN` | Token requerido para la inyección manual con la cabecera `x-canary-fault` |
+| `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS` | Exportación OpenTelemetry hacia Grafana Cloud |
+
+En Cloud Run, Terraform define estas variables (salvo `PORT`, que la asigna Cloud Run automáticamente) y toma los valores sensibles de Secret Manager.
 
 El archivo `.env` no debe subirse al repositorio. `.env.example` sirve como referencia.
-
-## Despliegue en Azure
-
-La API se publica como `biblio-express` en Azure Container Registry (ACR) y se despliega en Azure Kubernetes Service (AKS) mediante [`.github/workflows/api.yml`](.github/workflows/api.yml). El workflow construye la imagen, confirma su digest en ACR, aplica los manifiestos del clúster y espera el rollout de `biblio-api-v2`. Después comprueba que el Deployment usa exactamente ese digest.
-
-Configura el secreto `AZURE_CREDENTIALS` en GitHub Actions. Los valores de ACR y AKS están definidos en el workflow: `biblioacrphol`, `biblioacrphol.azurecr.io`, `rg-biblio-azure` y `aks-biblio-azure`. `AZURE_CREDENTIALS` debe corresponder a una identidad con permisos para publicar en ACR y administrar el clúster AKS.
-
-Cada componente se versiona con SemVer. Un push a `main` usa una imagen inmutable con tag `sha-<commit>`; una release de API se crea con un tag `api-vMAJOR.MINOR.PATCH`, por ejemplo `api-v1.1.0`. Para volver a una versión anterior se puede ejecutar `kubectl set image` con el tag semántico correspondiente.
-
-
-El workflow no aplica `k8s/secret.yaml`: las credenciales deben existir previamente en AKS y administrarse mediante Azure Key Vault/Secrets Store CSI. No se deben almacenar secretos en el repositorio.
-
-## Object Storage separado
-
-El almacenamiento de artefactos es un microservicio independiente en [`object-storage/README.md`](object-storage/README.md). La API no contiene credenciales ni el SDK de Azure: `sendResponseWithArtifact` conserva la firma usada por los controladores V2 y envía el artefacto completo mediante `POST /artifacts`.
-
-La comunicación dentro del clúster usa `http://object-storage:3001`. El cuerpo conserva las entidades (`book`, `loan` o `user`, además de `pokemon` y `doctor`) y los campos `traceId`, `otelTraceId`, `spanId` y `traceparent`. Si el almacenamiento no está disponible, la API registra el error y mantiene la respuesta de negocio, igual que antes.
-
-El microservicio tiene su propio `Dockerfile`, `package.json`, lockfile, README y pipeline `.github/workflows/object-storage.yml`. Su despliegue y sus manifiestos se documentan en [`object-storage/README.md`](object-storage/README.md).
-
-## Kubernetes de la API
-
-Los manifiestos de la API están en `k8s/` y se aplican al namespace `biblio`:
-
-- `namespace.yaml`: crea el namespace del sistema.
-- `configmap.yaml`: configuración no sensible de la API, incluido `OBJECT_STORAGE_URL`.
-- `service-account.yaml`: identidad administrada de la API para Azure Workload Identity.
-- `secret-provider-class.yaml`: integración con Azure Key Vault mediante Secrets Store CSI.
-- `secret.yaml`: referencia local de secretos; no se aplica desde el workflow ni debe contener credenciales en el repositorio.
-- `deployment.yaml`: despliega `biblio-api-v2`, sus variables, probes, recursos y volumen CSI.
-- `service.yaml`: expone la API dentro del clúster mediante un servicio `ClusterIP`.
-- `hpa.yaml`: configura el escalado horizontal del Deployment.
-- `ingress.yaml`: publica el tráfico HTTP externo hacia el servicio de la API.
-
-El workflow de la API aplica estos manifiestos en AKS y fija la imagen por digest después de publicarla en Azure Container Registry.
-
 
 ## 🗃️ Modelos de base de datos
 
@@ -418,6 +390,7 @@ La aplicación utiliza PostgreSQL mediante Prisma ORM. La base de datos está co
 | `name` | `String` | Obligatorio | Nombre del usuario |
 | `email` | `String` | Obligatorio, único | Correo electrónico del usuario |
 | `createdAt` | `DateTime` | Obligatorio, valor por defecto `now()` | Fecha y hora de creación del usuario |
+| `updatedAt` | `DateTime` | Obligatorio, se actualiza automáticamente | Fecha y hora de la última modificación |
 
 ---
 
@@ -430,6 +403,7 @@ La aplicación utiliza PostgreSQL mediante Prisma ORM. La base de datos está co
 | `author` | `String` | Obligatorio | Autor del libro |
 | `isbn` | `String` | Obligatorio, único | ISBN del libro |
 | `publishedAt` | `DateTime` | Obligatorio | Fecha de publicación del libro |
+| `updatedAt` | `DateTime` | Obligatorio, se actualiza automáticamente | Fecha y hora de la última modificación |
 
 ---
 
@@ -443,6 +417,7 @@ La aplicación utiliza PostgreSQL mediante Prisma ORM. La base de datos está co
 | `borrowedAt` | `DateTime` | Obligatorio, valor por defecto `now()` | Fecha y hora en que se realiza el préstamo |
 | `dueDate` | `DateTime` | Obligatorio | Fecha límite de devolución |
 | `returnedAt` | `DateTime` | Opcional / nullable | Fecha y hora de devolución del libro |
+| `updatedAt` | `DateTime` | Obligatorio, se actualiza automáticamente | Fecha y hora de la última modificación |
 
 ---
 
@@ -470,7 +445,6 @@ El modelo está definido en `prisma/schema.prisma`.
 - `Loan.bookId` referencia a `Book.id`.
 - `Loan.returnedAt` puede ser `NULL` mientras el préstamo no haya sido devuelto.
 
-
 # Comandos disponibles
 
 | Comando | Descripción |
@@ -488,11 +462,13 @@ El modelo está definido en `prisma/schema.prisma`.
 
 ### `GET /health`
 
-Respuesta:
+Respuesta (incluye la versión y el track que atendió la petición, también en las cabeceras `X-App-Version` y `X-App-Track`):
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "appVersion": "4.0.0",
+  "track": "canary"
 }
 ```
 
@@ -869,7 +845,6 @@ PostgreSQL
 - **Services:** contienen acceso a datos y lógica de negocio.
 - **Prisma:** proporciona acceso ORM a PostgreSQL.
 
-# Estructura del proyecto
 
 ```text
 biblio-express/
