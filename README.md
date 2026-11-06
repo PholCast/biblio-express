@@ -209,18 +209,111 @@ Aplicado al patrón Expand/Contract:
 | **Rollback** | Es seguro: al volver al 100% stable (v3) no hay que revertir migraciones ni datos, porque el esquema no cambió |
 
 
+**Compatibilidad verificada:**
+- El canary (v4) **sigue sirviendo `/api/v3/*`**. Por ejemplo, `GET /api/v3/books/1` con `x-canary: true` responde `200` desde `4.0.0/canary`.
+- El quality gate mide la misma ruta `/api/v3/books` en ambos tracks. En las promociones registró **0 errores 5xx en stable y en canary**. Ejemplo de una de las ejecuciones automáticas:
+
+| Etapa | Peticiones stable | Peticiones canary | Errores 5xx | p95 canary | p95 stable |
+|---|---|---|---|---|---|
+| 1 | 974 | 107 | 0 | 54 ms | 131 ms |
+| 2 | 318 | 105 | 0 | 142 ms | 206 ms |
+
+- `prisma migrate deploy` se ejecuta al arrancar cada contenedor y solo aplica migraciones aditivas. Un rollback a v3 (100% stable) **no requiere revertir datos ni migraciones** y no pierde información.
+
+## Umbrales de decisión (SLO) versionados en el repositorio
+
+Los umbrales están **definidos y versionados antes del despliegue** en `observability/canary-slo.json`:
+
+| Umbral | Valor | Significado |
+|---|---|---|
+| `windowSeconds` | 120 | Ventana de observación del quality gate (stable y canary en la misma ventana) |
+| `minimumRequestsPerTrack` | 100 | Volumen mínimo por track para que la comparación sea representativa |
+| `max5xxRate` | 0.01 | Máximo 1% de respuestas 5xx en el canary |
+| `max4xxRate` | 0.05 | Máximo 5% de respuestas 4xx en el canary |
+| `maxP95LatencyMs` | 500 | Latencia p95 máxima del canary |
+| `maxP95RegressionPercent` | 20 | El p95 del canary no puede superar en más de un 20% al del stable (baseline) |
+
+**Cómo se usan en cada etapa** (1 y 2):
+
+1. **Carga concurrente** (`scripts/canary-load.js`): 20 peticiones simultáneas a `/api/v3/books` por el Load Balancer hasta reunir al menos 100 respuestas de cada track (identificadas por `X-App-Track`), dentro de la ventana de 120 s.
+2. **Captura de SLI** (`scripts/cloud-monitoring-snapshot.js`): consulta la API de Cloud Monitoring para la misma ventana y por servicio: peticiones, 4xx, 5xx, latencia p50/p95/p99, CPU y memoria.
+3. **Evaluación** (`src/observability/canary-quality-gate.js`, ejecutado por `scripts/canary-quality-gate.js`):
+
+| Orden | Condición | Decisión |
+|---|---|---|
+| 1 | Configuración del SLO inválida, falta un track o las ventanas no coinciden | `pause` |
+| 2 | Algún track con menos de `minimumRequestsPerTrack` peticiones | `pause` (volumen insuficiente) |
+| 3 | Canary con 5xx > 1%, 4xx > 5% o p95 > 500 ms | **`abort`** |
+| 4 | El stable (baseline) supera 5xx > 1% o p95 > 500 ms: comparación no concluyente | `pause` |
+| 5 | p95 del canary > p95 del stable × 1.20 | **`abort`** (regresión frente al baseline) |
+| 6 | Todo lo anterior se cumple | **`promote`** |
+
+4. **Acción** (`scripts/run-canary-stages.sh`):
+
+| Resultado | Código | Acción |
+|---|---|---|
+| `promote` | exit 0 | Pasa a la siguiente etapa |
+| `pause` | exit 1 | Toma una nueva muestra (hasta 3 intentos). Si sigue en pausa, hace rollback |
+| `abort` | exit 2 | **Rollback inmediato:** `terraform apply` con canary 0% / stable 100% y fallos desactivados |
+| Error interno | exit 3 | Rollback |
+
+El rollback solo cambia el reparto de tráfico. No toca la base de datos, así que se conserva la integridad de los datos.
+
+**Alertas versionadas como código** (`terraform-gcp/modules/monitoring/main.tf`): las mismas reglas del SLO están como políticas de Cloud Monitoring sobre el canary. Notifican por correo y se visualizan en el dashboard de Cloud Monitoring; el rollback lo ejecuta el quality gate.
+
+| Alerta | Condición |
+|---|---|
+| `canary 5xx > 1%` | Proporción 5xx/total > 0.01 durante 60 s |
+| `canary p95 > 500 ms` | Latencia p95 > 500 ms durante 60 s |
+
+**Demostración** con `canary_fault_mode`:
+- `error` al 25% produjo un 24–25% de 5xx en el canary → `abort` en la Etapa 1 y rollback a 100% stable.
+- `latency` al 25% subió el p95 del canary a unos 2050 ms → `abort` y rollback.
+
+## Archivos del despliegue canary
+
+```text
+biblio-express/
+├── .github/workflows/
+│   ├── gcp-infrastructure.yml      # Infraestructura base (Terraform -target)
+│   └── gcp-canary.yml              # Build, etapas, quality gate y rollback
+├── observability/
+│   └── canary-slo.json             # Umbrales SLO versionados
+├── scripts/
+│   ├── run-canary-stages.sh        # Orquestación de etapas, verificación de pesos y rollback
+│   ├── canary-load.js              # Carga concurrente para el quality gate
+│   ├── cloud-monitoring-snapshot.js
+│   ├── cloud-monitoring-distributions.js
+│   └── canary-quality-gate.js      # CLI del quality gate (exit 0/1/2/3)
+├── src/
+│   ├── middlewares/
+│   │   ├── api-metadata.js         # Versión y track en todas las respuestas
+│   │   └── canary-fault.js         # Inyección de fallos (solo canary)
+│   ├── observability/              # OpenTelemetry, métricas y motor del quality gate
+│   ├── modules/books/book.v4.*     # Disponibilidad del libro (v4)
+│   ├── modules/users/user.v4.*     # Resumen de préstamos (v4)
+│   └── routes/api.v4.routes.js
+├── terraform-gcp/                  # Infraestructura como código (módulos)
+├── arquitectura-canary-gcp-simple.png
+└── arquitectura-canary-gcp.png
+```
+
+# Documentación general de la API
 
 ## Tecnologías
 
 - Node.js 24
 - Express 5
 - Prisma 7
-- PostgreSQL / Supabase
+- PostgreSQL / Supabase / Cloud SQL
 - Zod 4
 - Vitest
 - Docker
 - GitHub Actions
 - pnpm 11
+- Google Cloud: Cloud Run, Cloud Load Balancing, Cloud SQL, Artifact Registry, Secret Manager, Cloud Monitoring y Cloud Logging
+- Terraform
+- OpenTelemetry y Grafana Cloud
 
 ## Requisitos
 
