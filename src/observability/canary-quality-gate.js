@@ -25,7 +25,9 @@ export const evaluateCanary = (snapshot, slo) => {
     !Number.isFinite(slo.maxP95LatencyMs) ||
     slo.maxP95LatencyMs <= 0 ||
     !Number.isFinite(slo.maxP95RegressionPercent) ||
-    slo.maxP95RegressionPercent < 0
+    slo.maxP95RegressionPercent < 0 ||
+    !Number.isFinite(slo.minP95RegressionMs) ||
+    slo.minP95RegressionMs < 0
   ) {
     return pause('Invalid SLO configuration');
   }
@@ -122,7 +124,10 @@ export const evaluateCanary = (snapshot, slo) => {
     stable.p95LatencyMs *
     (1 + slo.maxP95RegressionPercent / 100);
 
-  if (canary.p95LatencyMs > maxAllowedP95) {
+  if (
+    canary.p95LatencyMs > maxAllowedP95 &&
+    canary.p95LatencyMs - stable.p95LatencyMs > slo.minP95RegressionMs
+  ) {
     return abort(
       'Canary p95 latency regressed beyond the allowed baseline',
     );

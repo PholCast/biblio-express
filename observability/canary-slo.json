@@ -4,5 +4,6 @@
   "max5xxRate": 0.01,
   "max4xxRateIncrease": 0.05,
   "maxP95LatencyMs": 500,
-  "maxP95RegressionPercent": 20
+  "maxP95RegressionPercent": 20,
+  "minP95RegressionMs": 100
 }
