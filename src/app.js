@@ -4,11 +4,11 @@ import apiRoutes from './routes/api.routes.js';
 import apiV2Routes from './routes/api.v2.routes.js';
 import apiV3Routes from './routes/api.v3.routes.js';
 import apiV4Routes from './routes/api.v4.routes.js';
+import apiV5Routes from './routes/api.v5.routes.js';
 import { requestLogger } from './observability/request-logger.js';
 import { traceContext } from './observability/trace-context.js';
 import { apiMetadata } from './middlewares/api-metadata.js';
 import { httpMetrics } from './observability/http-metrics.js';
-import { canaryFault } from './middlewares/canary-fault.js';
 
 const app = express();
 
@@ -17,13 +17,11 @@ app.use(traceContext);
 app.use(apiMetadata);
 app.use(requestLogger);
 app.use(httpMetrics);
-app.use(canaryFault);
 
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     appVersion: process.env.APP_VERSION || 'unknown',
-    track: process.env.APP_TRACK || 'unknown',
   });
 });
 
@@ -33,5 +31,6 @@ app.use('/api/v2', apiV2Routes);
 
 app.use('/api/v3', apiV3Routes);
 app.use('/api/v4', apiV4Routes);
+app.use('/api/v5', apiV5Routes);
 
 export default app;
