@@ -1,4 +1,5 @@
 const API_VERSIONS = {
+  '/api/v5': '5.0.0',
   '/api/v4': '4.0.0',
   '/api/v3': '3.0.0',
   '/api/v2': '2.0.0',
@@ -15,10 +16,13 @@ export const apiMetadata = (req, res, next) => {
 
   const appVersion = process.env.APP_VERSION || 'unknown';
   const track = process.env.APP_TRACK || 'unknown';
+  const isV5 = apiPrefix === '/api/v5';
 
   // Versión y track en todas las respuestas (incluye /health y 404).
   res.setHeader('X-App-Version', appVersion);
-  res.setHeader('X-App-Track', track);
+  if (!isV5) {
+    res.setHeader('X-App-Track', track);
+  }
 
   if (!apiPrefix) {
     return next();
@@ -29,7 +33,7 @@ export const apiMetadata = (req, res, next) => {
   const metadata = {
     apiVersion,
     appVersion,
-    track,
+    ...(isV5 ? {} : { track }),
   };
 
   res.setHeader('X-API-Version', apiVersion);
