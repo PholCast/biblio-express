@@ -1,3 +1,4 @@
+import { getLastBook } from './book.v2.service.js';
 import { getBookById } from './book.service.js';
 import { getBookAvailability } from './book.v5.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
@@ -47,5 +48,23 @@ export const getBookByIdV5Controller = async (req, res) => {
     console.error('Error getting book v5:', error);
 
     return sendDbError(req, res, error, 'Error getting book');
+  }
+};
+
+export const getLastBookV5Controller = async (req, res) => {
+  try {
+    const book = await getLastBook();
+
+    if (!book) {
+      return res.status(404).json({
+        message: 'No books found',
+      });
+    }
+
+    return res.status(200).json({ book });
+  } catch (error) {
+    console.error('Error getting last book v5:', error);
+
+    return sendDbError(req, res, error, 'Error getting last book');
   }
 };
