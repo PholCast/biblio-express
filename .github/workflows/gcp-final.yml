@@ -58,3 +58,67 @@ jobs:
     # Se omite sin fallar hasta que exista la infraestructura final
     # (variables del repositorio creadas tras el primer apply local).
     if: vars.GCP_FINAL_PROJECT_ID != '' && vars.GCP_FINAL_TF_STATE_BUCKET != ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_FINAL_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_FINAL_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Create ephemeral Terraform variables
+        working-directory: ${{ env.TF_ROOT }}
+        env:
+          CHAOS_TOKEN: ${{ secrets.GCP_FINAL_CHAOS_TOKEN }}
+          OTEL_EXPORTER_ENDPOINT: ${{ secrets.OTEL_EXPORTER_ENDPOINT }}
+          OTEL_EXPORTER_HEADERS: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+          DOCTORS_API_URL: ${{ vars.DOCTORS_API_URL }}
+          POKEMON_API_URL: ${{ vars.POKEMON_API_URL }}
+        run: |
+          cat > terraform.tfvars <<EOF
+          project_id = "${PROJECT_ID}"
+          state_project_id = "${STATE_PROJECT_ID}"
+          create_project = false
+          region = "${REGION}"
+          zone = "us-central1-a"
+          environment = "final"
+          service_name = "biblio-express"
+          artifact_repository_id = "${REPOSITORY}"
+          app_version = "${APP_VERSION}"
+          db_pool_max = 10
+          resilience_enabled = ${RESILIENCE_ENABLED}
+          chaos_enabled = ${CHAOS_ENABLED}
+          chaos_token = "${CHAOS_TOKEN}"
+          doctors_api_url = "${DOCTORS_API_URL}"
+          pokemon_api_url = "${POKEMON_API_URL}"
+          otel_exporter_endpoint = "${OTEL_EXPORTER_ENDPOINT}"
+          otel_exporter_headers = "${OTEL_EXPORTER_HEADERS}"
+          github_repository = "${GITHUB_REPOSITORY}"
+          github_branch = "main"
+          deletion_protection = false
+          EOF
+
+      - name: Initialize Terraform backend (state outside the app project)
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=${TF_STATE_PREFIX}"
+
+      - name: Validate Terraform
+        working-directory: ${{ env.TF_ROOT }}
+        run: terraform validate
