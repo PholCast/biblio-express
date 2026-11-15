@@ -1,0 +1,20 @@
+{
+  "name": "perfil-comun-v1",
+  "description": "Perfil de carga unico para los tres experimentos. Se usa sin cambios en Ronda 0 y Ronda 1.",
+  "executor": "ramping-vus",
+  "startVUs": 0,
+  "stages": [
+    { "duration": "30s", "target": 10 },
+    { "duration": "60s", "target": 10 },
+    { "duration": "30s", "target": 20 },
+    { "duration": "180s", "target": 20 },
+    { "duration": "30s", "target": 0 }
+  ],
+  "gracefulRampDown": "10s",
+  "thinkTimeSeconds": 0.5,
+  "requestTimeout": "10s",
+  "faultWindow": {
+    "startSeconds": 150,
+    "durationSeconds": 120
+  }
+}
