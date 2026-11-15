@@ -173,3 +173,69 @@ variable "chaos_token" {
   default     = null
   nullable    = true
 }
+
+variable "doctors_api_url" {
+  description = "Base URL of the doctors API (teammate). Empty disables the call."
+  type        = string
+  default     = ""
+}
+
+variable "pokemon_api_url" {
+  description = "Base URL of the pokemon API (teammate). Empty disables the call."
+  type        = string
+  default     = ""
+}
+
+variable "otel_exporter_endpoint" {
+  description = "Optional OTLP endpoint, for example a Grafana Cloud endpoint."
+  type        = string
+  default     = ""
+}
+
+variable "otel_exporter_headers" {
+  description = "Optional OTLP headers encoded as a secret value."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "otel_exporter_otlp_protocol" {
+  description = "OTLP transport protocol used by the OpenTelemetry exporters."
+  type        = string
+  default     = "http/protobuf"
+}
+
+variable "github_repository" {
+  description = "GitHub repository in owner/name format allowed to use WIF."
+  type        = string
+}
+
+variable "github_branch" {
+  description = "GitHub branch allowed to deploy through WIF."
+  type        = string
+  default     = "main"
+}
+
+variable "notification_email" {
+  description = "Optional email for Cloud Monitoring notifications."
+  type        = string
+  default     = ""
+}
+
+variable "p95_threshold_ms" {
+  description = "p95 latency threshold shown on the dashboard and used by the alert."
+  type        = number
+  default     = 500
+}
+
+variable "max_5xx_rate" {
+  description = "Maximum 5xx ratio shown on the dashboard and used by the alert."
+  type        = number
+  default     = 0.01
+}
+
+variable "deletion_protection" {
+  description = "Protect the Cloud SQL instance and the Cloud Run service from deletion."
+  type        = bool
+  default     = false
+}
