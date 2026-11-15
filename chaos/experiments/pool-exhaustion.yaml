@@ -102,3 +102,79 @@ steady-state-hypothesis:
         type: http
         url: ${base_url}${flow_path}
         timeout: 2
+
+method:
+  - name: iniciar-perfil-de-carga
+    type: action
+    background: true
+    provider:
+      type: process
+      path: k6
+      arguments: run --quiet load/k6/flow.js
+      timeout: 420
+
+  - name: retener-conexiones-del-pool
+    type: action
+    pauses:
+      before: 150
+      after: 120
+    secrets:
+      - chaos
+    provider:
+      type: http
+      method: POST
+      url: ${base_url}/chaos/pool-exhaustion
+      timeout: 15
+      headers:
+        Content-Type: application/json
+        x-chaos-token: ${token}
+      arguments:
+        hold: ${pool_hold}
+        durationSeconds: ${fault_duration_seconds}
+
+  - name: estado-del-pool-tras-la-ventana
+    type: probe
+    secrets:
+      - chaos
+    provider:
+      type: http
+      url: ${base_url}/chaos/status
+      timeout: 5
+      headers:
+        x-chaos-token: ${token}
+
+  - name: apagar-el-fallo
+    type: action
+    pauses:
+      after: 60
+    secrets:
+      - chaos
+    provider:
+      type: http
+      method: DELETE
+      url: ${base_url}/chaos/pool-exhaustion
+      timeout: 5
+      headers:
+        x-chaos-token: ${token}
+
+rollbacks:
+  - name: liberar-las-conexiones-retenidas
+    type: action
+    secrets:
+      - chaos
+    provider:
+      type: http
+      method: DELETE
+      url: ${base_url}/chaos/pool-exhaustion
+      timeout: 5
+      headers:
+        x-chaos-token: ${token}
+
+  - name: el-flujo-volvio-al-estado-estable
+    type: probe
+    pauses:
+      before: 5
+    provider:
+      type: http
+      url: ${base_url}${flow_path}
+      timeout: 2
