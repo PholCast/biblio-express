@@ -53,7 +53,12 @@ export const getBookByIdV5Controller = async (req, res) => {
 
 export const getLastBookV5Controller = async (req, res) => {
   try {
-    const book = await getLastBook();
+    const { value: book, degraded } = await loadWithStaleFallback(
+      req,
+      res,
+      'book:last',
+      getLastBook,
+    );
 
     if (!book) {
       return res.status(404).json({
@@ -61,7 +66,10 @@ export const getLastBookV5Controller = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ book });
+    return res.status(200).json({
+      book,
+      ...(degraded ? { degraded: true } : {}),
+    });
   } catch (error) {
     console.error('Error getting last book v5:', error);
 
