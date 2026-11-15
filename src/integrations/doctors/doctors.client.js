@@ -1,22 +1,12 @@
 import "dotenv/config";
+import { fetchJson } from '../instrumented-fetch.js';
 
 const DOCTORS_API_URL = process.env.DOCTORS_API_URL;
 
 export const getDoctor = async (traceId) => {
-  const response = await fetch(
+  return fetchJson(
+    'doctors',
     `${DOCTORS_API_URL}/api/v2/doctors/last`,
-    {
-      headers: {
-        'x-trace-id': traceId,
-      },
-    }
+    traceId,
   );
-
-  if (!response.ok) {
-    throw new Error(
-      `Doctors API returned status ${response.status}`
-    );
-  }
-
-  return response.json();
 };
