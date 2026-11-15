@@ -1,0 +1,60 @@
+name: GCP Final Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      resilience_enabled:
+        description: "Patrones de resiliencia: false = Ronda 0, true = Ronda 1"
+        required: true
+        type: boolean
+        default: false
+      chaos_enabled:
+        description: "Exponer el interruptor de fallos (/chaos)"
+        required: true
+        type: boolean
+        default: true
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "server.js"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "Dockerfile"
+      - "terraform-gcp-final/**"
+      - ".github/workflows/gcp-final.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gcp-final
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_FINAL_PROJECT_ID }}
+  STATE_PROJECT_ID: ${{ vars.GCP_FINAL_STATE_PROJECT_ID }}
+  TF_STATE_BUCKET: ${{ vars.GCP_FINAL_TF_STATE_BUCKET }}
+  TF_STATE_PREFIX: biblio-express-final
+  REGION: us-central1
+  REPOSITORY: biblio-api
+  IMAGE_NAME: biblio-api
+  TF_ROOT: terraform-gcp-final
+  APP_VERSION: 5.0.0
+  PLACEHOLDER_IMAGE: us-docker.pkg.dev/cloudrun/container/hello
+  # En un push se conserva el modo guardado en las variables del repositorio.
+  RESILIENCE_ENABLED: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.resilience_enabled) || vars.GCP_FINAL_RESILIENCE_ENABLED || 'false' }}
+  CHAOS_ENABLED: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.chaos_enabled) || vars.GCP_FINAL_CHAOS_ENABLED || 'true' }}
+
+jobs:
+  deploy:
+    name: Build and deploy the API
+    runs-on: ubuntu-latest
+    # Se omite sin fallar hasta que exista la infraestructura final
+    # (variables del repositorio creadas tras el primer apply local).
+    if: vars.GCP_FINAL_PROJECT_ID != '' && vars.GCP_FINAL_TF_STATE_BUCKET != ''
