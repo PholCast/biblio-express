@@ -64,3 +64,38 @@ resource "google_monitoring_alert_policy" "errors_5xx" {
 
   notification_channels = local.channels
 }
+
+# Latencia p95 por encima del estado estable, sostenida 60 s.
+resource "google_monitoring_alert_policy" "latency_p95" {
+  project      = var.project_id
+  display_name = "${var.dashboard_name} p95 above steady state"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "p95 latency above steady state"
+
+    condition_threshold {
+      filter          = "metric.type=\"run.googleapis.com/request_latencies\" ${local.run_service}"
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.p95_threshold_ms
+      duration        = "60s"
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_PERCENTILE_95"
+        cross_series_reducer = "REDUCE_MAX"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  documentation {
+    content   = local.alert_documentation
+    mime_type = "text/markdown"
+  }
+
+  notification_channels = local.channels
+}
