@@ -1,0 +1,90 @@
+name: Chaos Experiment
+
+# Ejecuta una ronda del experimento declarativo contra la API desplegada.
+# Solo manual: la ventana de experimentación se acuerda con el grupo.
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "Ronda: calibracion (sin fallo), 0 (sin protección) o 1 (protegida)"
+        required: true
+        type: choice
+        default: calibracion
+        options:
+          - calibracion
+          - "0"
+          - "1"
+      base_url:
+        description: "URL de la API (vacío: variable GCP_FINAL_SERVICE_URL)"
+        required: false
+        type: string
+      flow_path:
+        description: "Ruta del flujo bajo carga"
+        required: true
+        type: string
+        default: /api/v5/books/1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chaos-experiment
+  cancel-in-progress: false
+
+jobs:
+  experiment:
+    name: Run round ${{ inputs.round }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_URL: ${{ inputs.base_url || vars.GCP_FINAL_SERVICE_URL }}
+      FLOW_PATH: ${{ inputs.flow_path }}
+      CHAOS_TOKEN: ${{ secrets.GCP_FINAL_CHAOS_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Chaos Toolkit
+        run: pip install -r chaos/requirements.txt
+
+      - name: Set up k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Validate the declarative experiment
+        run: chaos validate chaos/experiments/pool-exhaustion.yaml
+
+      # Puerta de calidad: el paso falla si la métrica objetivo incumple el
+      # umbral declarado. En Ronda 0 ese fallo es el resultado esperado.
+      - name: Run the round and evaluate the objective metric
+        run: |
+          chmod +x scripts/chaos/run-round.sh
+          scripts/chaos/run-round.sh "${{ inputs.round }}"
+
+      - name: Publish the result
+        if: always()
+        run: |
+          result="chaos/results/*/result.json"
+          if ls $result >/dev/null 2>&1; then
+            {
+              echo "### Resultado de la ronda ${{ inputs.round }}"
+              echo '```json'
+              cat $result
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-round-${{ inputs.round }}-${{ github.run_id }}
+          path: |
+            chaos/results/
+            chaostoolkit.log
+          if-no-files-found: warn
