@@ -1,0 +1,52 @@
+project_id         = "biblio-express-final-2026"
+state_project_id   = "biblio-express-tfstate"
+create_project     = false
+project_name       = "Biblio Express Final"
+billing_account_id = null
+folder_id          = null
+organization_id    = null
+region             = "us-central1"
+zone               = "us-central1-a"
+environment        = "final"
+service_name       = "biblio-express"
+
+artifact_repository_id = "biblio-api"
+
+# Replace with the Artifact Registry image digest produced by CI/CD.
+image       = "us-central1-docker.pkg.dev/biblio-express-final-2026/biblio-api/biblio-api@sha256:REPLACE_DIGEST"
+app_version = "5.0.0"
+
+cloud_sql_database = "bibliodb"
+cloud_sql_user     = "biblioapp"
+cloud_sql_tier     = "db-f1-micro"
+
+# One instance = one connection pool: the fault injection is deterministic.
+min_instances           = 1
+max_instances           = 1
+max_request_concurrency = 80
+cpu_limit               = "1"
+memory_limit            = "512Mi"
+cpu_always_allocated    = true
+
+# Round 0: resilience_enabled = false. Round 1: resilience_enabled = true.
+db_pool_max                = 10
+resilience_enabled         = false
+db_pool_acquire_timeout_ms = 1000
+stale_cache_ttl_seconds    = 300
+
+chaos_enabled = false
+chaos_token   = "replace-with-a-long-random-token"
+
+doctors_api_url = ""
+pokemon_api_url = ""
+
+otel_exporter_endpoint      = ""
+otel_exporter_headers       = ""
+otel_exporter_otlp_protocol = "http/protobuf"
+
+github_repository   = "PholCast/biblio-express"
+github_branch       = "main"
+notification_email  = ""
+p95_threshold_ms    = 500
+max_5xx_rate        = 0.01
+deletion_protection = false
