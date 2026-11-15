@@ -55,3 +55,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 k8s/secret.yaml
 #k8s/secret-provider-class.yaml
+
+# Resultados sueltos de k6 (las evidencias de cada ronda van en chaos/results)
+load/results/*
+!load/results/.gitkeep
