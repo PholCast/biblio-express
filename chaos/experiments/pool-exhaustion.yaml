@@ -68,3 +68,37 @@ extensions:
       - El interruptor libera las conexiones al cumplirse duration_seconds
       - Chaos Toolkit ejecuta siempre la seccion rollbacks
       - Tope duro del interruptor de 300 s por activacion
+
+controls:
+  - name: condiciones-de-aborto
+    provider:
+      type: python
+      module: chaosaddons.controls.safeguards
+      arguments:
+        probes:
+          - name: la-instancia-sigue-viva
+            type: probe
+            frequency: 10
+            tolerance: 200
+            provider:
+              type: http
+              url: ${base_url}/health
+              timeout: 5
+
+steady-state-hypothesis:
+  title: El flujo responde 200 en menos de 2 s y no hay fallos activos
+  probes:
+    - name: la-api-esta-viva
+      type: probe
+      tolerance: 200
+      provider:
+        type: http
+        url: ${base_url}/health
+        timeout: 5
+    - name: el-flujo-responde-a-tiempo
+      type: probe
+      tolerance: 200
+      provider:
+        type: http
+        url: ${base_url}${flow_path}
+        timeout: 2
