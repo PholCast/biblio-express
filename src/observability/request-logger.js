@@ -42,6 +42,8 @@ export const requestLogger = (req, res, next) => {
         app_version: res.getHeader('X-App-Version'),
         app_track: res.getHeader('X-App-Track'),
         duration_ms: durationMs,
+        degraded: res.locals.degraded === true,
+        x_trace_id: req.traceId,
         trace_id: spanContext?.traceId,
         span_id: spanContext?.spanId,
       },
