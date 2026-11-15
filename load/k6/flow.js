@@ -48,3 +48,56 @@ export const options = {
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: { round: ROUND, experiment: EXPERIMENT, profile: profile.name },
 };
+
+const currentPhase = () => {
+  const elapsed = Date.now() - exec.scenario.startTime;
+
+  if (elapsed < faultStart) {
+    return 'baseline';
+  }
+
+  return elapsed < faultEnd ? 'fault' : 'recovery';
+};
+
+const traceId = () =>
+  `k6-${ROUND}-${exec.vu.idInTest}-${exec.scenario.iterationInTest}`;
+
+export default function () {
+  const path = FLOW_PATHS[exec.scenario.iterationInTest % FLOW_PATHS.length];
+  const phase = currentPhase();
+
+  const response = http.get(`${BASE_URL}${path}`, {
+    timeout: profile.requestTimeout,
+    headers: { 'x-trace-id': traceId() },
+    tags: { phase, name: path },
+  });
+
+  check(
+    response,
+    {
+      'status 200': (r) => r.status === 200,
+      'sin degradar': (r) => r.headers['X-Degraded'] === undefined,
+    },
+    { phase },
+  );
+
+  sleep(profile.thinkTimeSeconds);
+}
+
+export function handleSummary(data) {
+  const summary = buildSummary(data, {
+    profile,
+    phases: PHASES,
+    round: ROUND,
+    experiment: EXPERIMENT,
+    baseUrl: BASE_URL,
+    flowPaths: FLOW_PATHS,
+  });
+
+  const output = __ENV.SUMMARY_PATH || 'load/results/summary.json';
+
+  return {
+    [output]: JSON.stringify(summary, null, 2),
+    stdout: `${JSON.stringify(summary.phases, null, 2)}\n`,
+  };
+}
