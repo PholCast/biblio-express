@@ -46,7 +46,12 @@ export const getLoanByIdV5Controller = async (req, res) => {
 
 export const getLastLoanV5Controller = async (req, res) => {
   try {
-    const loan = await getLastLoan();
+    const { value: loan, degraded } = await loadWithStaleFallback(
+      req,
+      res,
+      'loan:last',
+      getLastLoan,
+    );
 
     if (!loan) {
       return res.status(404).json({
@@ -54,7 +59,10 @@ export const getLastLoanV5Controller = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ loan });
+    return res.status(200).json({
+      loan,
+      ...(degraded ? { degraded: true } : {}),
+    });
   } catch (error) {
     console.error('Error getting last loan v5:', error);
 
