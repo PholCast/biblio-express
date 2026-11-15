@@ -122,3 +122,52 @@ jobs:
       - name: Validate Terraform
         working-directory: ${{ env.TF_ROOT }}
         run: terraform validate
+
+      - name: Apply base infrastructure
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="image=${PLACEHOLDER_IMAGE}" \
+            -target=terraform_data.state_isolation \
+            -target=module.project \
+            -target=module.artifact_registry \
+            -target=module.cloud_sql \
+            -target=module.secrets \
+            -target=module.iam
+
+      - name: Build and push the API image
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:v${APP_VERSION}-${GITHUB_SHA::12}"
+          docker build --pull -t "$image" .
+          docker push "$image"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image")
+          case "$digest" in *"@sha256:"*) ;; *) echo "Image has no digest"; exit 1 ;; esac
+          echo "IMAGE=$digest" >> "$GITHUB_ENV"
+
+      - name: Deploy the API to Cloud Run
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="image=${IMAGE}"
+
+      - name: Smoke test
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          set -euo pipefail
+          url=$(terraform output -raw service_url)
+          for attempt in {1..12}; do
+            if curl -fsS "$url/health"; then
+              break
+            fi
+            sleep 10
+          done
+          curl -fsS -o /dev/null -w "GET /api/v5/books -> %{http_code}\n" "$url/api/v5/books"
+          {
+            echo "### Despliegue final"
+            echo "- URL: $url"
+            echo "- Imagen: $IMAGE"
+            echo "- resilience_enabled: $RESILIENCE_ENABLED"
+            echo "- chaos_enabled: $CHAOS_ENABLED"
+          } >> "$GITHUB_STEP_SUMMARY"
