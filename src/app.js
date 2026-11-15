@@ -1,5 +1,6 @@
 import express from 'express';
 import './observability/business-metrics.js';
+import './observability/resource-metrics.js';
 import apiRoutes from './routes/api.routes.js';
 import apiV2Routes from './routes/api.v2.routes.js';
 import apiV3Routes from './routes/api.v3.routes.js';
