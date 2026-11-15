@@ -1,12 +1,28 @@
 import { getLoanById } from './loan.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
+import {
+  loadWithStaleFallback,
+  sendDbError,
+} from '../../resilience/db-fallback.js';
+
+const loadLoanDetail = async (id) => {
+  const loan = await getLoanById(id);
+
+  return loan ? { loan } : null;
+};
 
 export const getLoanByIdV5Controller = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const loan = await getLoanById(id);
 
-    if (!loan) {
+    const { value: detail, degraded } = await loadWithStaleFallback(
+      req,
+      res,
+      `loan:${id}`,
+      () => loadLoanDetail(id),
+    );
+
+    if (!detail) {
       return res.status(404).json({
         message: 'Loan not found',
       });
@@ -15,15 +31,14 @@ export const getLoanByIdV5Controller = async (req, res) => {
     const { pokemon, doctor } = await getExternalEntities(req.traceId);
 
     return res.status(200).json({
-      loan,
+      ...detail,
       pokemon,
       doctor,
+      ...(degraded ? { degraded: true } : {}),
     });
   } catch (error) {
     console.error('Error getting loan v5:', error);
 
-    return res.status(500).json({
-      message: 'Error getting loan',
-    });
+    return sendDbError(req, res, error, 'Error getting loan');
   }
 };
