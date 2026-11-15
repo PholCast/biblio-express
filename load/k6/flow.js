@@ -13,6 +13,21 @@ const FLOW_PATHS = (__ENV.FLOW_PATH || '/api/v5/books/1')
   .map((path) => path.trim())
   .filter(Boolean);
 
+const parseHeaders = (name) => {
+  if (!__ENV[name]) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(__ENV[name]);
+  } catch (error) {
+    throw new Error(`${name} must be a JSON object: ${error.message}`);
+  }
+};
+
+const EXTRA_HEADERS = parseHeaders('EXTRA_HEADERS');
+const FAULT_HEADERS = parseHeaders('FAULT_HEADERS');
+
 const ROUND = __ENV.ROUND || 'calibracion';
 const EXPERIMENT = __ENV.EXPERIMENT || 'sin-experimento';
 
@@ -68,7 +83,11 @@ export default function () {
 
   const response = http.get(`${BASE_URL}${path}`, {
     timeout: profile.requestTimeout,
-    headers: { 'x-trace-id': traceId() },
+    headers: {
+      ...EXTRA_HEADERS,
+      ...(phase === 'fault' ? FAULT_HEADERS : {}),
+      'x-trace-id': traceId(),
+    },
     tags: { phase, name: path },
   });
 
