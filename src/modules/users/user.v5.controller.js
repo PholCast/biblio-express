@@ -1,5 +1,6 @@
 import { getUserById } from './user.service.js';
 import { getUserLoanSummary } from './user.v5.service.js';
+import { getExternalEntities } from '../../integrations/external-entities.service.js';
 
 export const getUserByIdV5Controller = async (req, res) => {
   try {
@@ -13,10 +14,13 @@ export const getUserByIdV5Controller = async (req, res) => {
     }
 
     const loanSummary = await getUserLoanSummary(id);
+    const { pokemon, doctor } = await getExternalEntities(req.traceId);
 
     return res.status(200).json({
       user,
       loans: loanSummary,
+      pokemon,
+      doctor,
     });
   } catch (error) {
     console.error('Error getting user v5:', error);
