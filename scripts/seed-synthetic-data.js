@@ -47,3 +47,56 @@ const ensure = async (path, existing, isSame, build) => {
 
   return created;
 };
+
+const users = await ensure(
+  '/users',
+  await list('/users'),
+  (item, candidate) => item.email === candidate.email,
+  (index) => ({
+    name: `Usuario Sintetico ${index}`,
+    email: `chaos.user${index}@example.com`,
+  }),
+);
+
+const books = await ensure(
+  '/books',
+  await list('/books'),
+  (item, candidate) => item.isbn === candidate.isbn,
+  (index) => ({
+    title: `Libro Sintetico ${index}`,
+    author: 'Ingenieria del Caos',
+    isbn: `978000000${String(index).padStart(4, '0')}`,
+    publishedAt: '2026-01-01',
+  }),
+);
+
+const loans = await list('/loans');
+
+// Un préstamo activo por cada libro impar, para tener ambos estados.
+for (let index = 0; index < amount; index += 2) {
+  const book = books[index];
+  const hasActiveLoan = loans.some(
+    (loan) => loan.bookId === book.id && loan.returnedAt === null,
+  );
+
+  if (!hasActiveLoan) {
+    await request('POST', '/loans', {
+      userId: users[index].id,
+      bookId: book.id,
+      borrowedAt: '2026-11-01T00:00:00.000Z',
+      dueDate: '2026-12-01T00:00:00.000Z',
+      returnedAt: null,
+    });
+  }
+}
+
+console.log(
+  JSON.stringify(
+    {
+      users: users.map((user) => user.id),
+      books: books.map((book) => book.id),
+    },
+    null,
+    2,
+  ),
+);
