@@ -1,3 +1,4 @@
+import { getLastLoan } from './loan.v2.service.js';
 import { getLoanById } from './loan.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
 import {
@@ -40,5 +41,23 @@ export const getLoanByIdV5Controller = async (req, res) => {
     console.error('Error getting loan v5:', error);
 
     return sendDbError(req, res, error, 'Error getting loan');
+  }
+};
+
+export const getLastLoanV5Controller = async (req, res) => {
+  try {
+    const loan = await getLastLoan();
+
+    if (!loan) {
+      return res.status(404).json({
+        message: 'No loans found',
+      });
+    }
+
+    return res.status(200).json({ loan });
+  } catch (error) {
+    console.error('Error getting last loan v5:', error);
+
+    return sendDbError(req, res, error, 'Error getting last loan');
   }
 };
