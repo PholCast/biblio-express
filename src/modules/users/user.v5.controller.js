@@ -1,3 +1,4 @@
+import { getLastUser } from './user.v2.service.js';
 import { getUserById } from './user.service.js';
 import { getUserLoanSummary } from './user.v5.service.js';
 import { getExternalEntities } from '../../integrations/external-entities.service.js';
@@ -47,5 +48,23 @@ export const getUserByIdV5Controller = async (req, res) => {
     console.error('Error getting user v5:', error);
 
     return sendDbError(req, res, error, 'Error getting user');
+  }
+};
+
+export const getLastUserV5Controller = async (req, res) => {
+  try {
+    const user = await getLastUser();
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'No users found',
+      });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error('Error getting last user v5:', error);
+
+    return sendDbError(req, res, error, 'Error getting last user');
   }
 };
