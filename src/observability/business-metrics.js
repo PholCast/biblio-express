@@ -18,15 +18,20 @@ const businessAttributes = {
 };
 
 availableBooks.addCallback(async (result) => {
-  const count = await prisma.book.count({
-    where: {
-      loans: {
-        none: {
-          returnedAt: null,
+  try {
+    const count = await prisma.book.count({
+      where: {
+        loans: {
+          none: {
+            returnedAt: null,
+          },
         },
       },
-    },
-  });
+    });
 
-  result.observe(count, businessAttributes);
+    result.observe(count, businessAttributes);
+  } catch (error) {
+    // Sin conexión disponible se omite la muestra en lugar de fallar.
+    console.warn('Skipping biblio.books.available:', error.message);
+  }
 });
