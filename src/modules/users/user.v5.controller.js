@@ -53,7 +53,12 @@ export const getUserByIdV5Controller = async (req, res) => {
 
 export const getLastUserV5Controller = async (req, res) => {
   try {
-    const user = await getLastUser();
+    const { value: user, degraded } = await loadWithStaleFallback(
+      req,
+      res,
+      'user:last',
+      getLastUser,
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -61,7 +66,10 @@ export const getLastUserV5Controller = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ user });
+    return res.status(200).json({
+      user,
+      ...(degraded ? { degraded: true } : {}),
+    });
   } catch (error) {
     console.error('Error getting last user v5:', error);
 
