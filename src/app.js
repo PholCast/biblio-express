@@ -6,6 +6,7 @@ import apiV2Routes from './routes/api.v2.routes.js';
 import apiV3Routes from './routes/api.v3.routes.js';
 import apiV4Routes from './routes/api.v4.routes.js';
 import apiV5Routes from './routes/api.v5.routes.js';
+import chaosRoutes from './chaos/chaos.routes.js';
 import { requestLogger } from './observability/request-logger.js';
 import { traceContext } from './observability/trace-context.js';
 import { apiMetadata } from './middlewares/api-metadata.js';
@@ -25,6 +26,9 @@ app.get('/health', (req, res) => {
     appVersion: process.env.APP_VERSION || 'unknown',
   });
 });
+
+// Interruptor de fallos del experimento de caos (requiere CHAOS_ENABLED).
+app.use('/chaos', chaosRoutes);
 
 app.use('/api', apiRoutes);
 
