@@ -1,5 +1,5 @@
 project_id         = "biblio-express-final-2026"
-state_project_id   = "biblio-express-tfstate"
+state_project_id   = "biblio-express-tfstate-2026"
 create_project     = false
 project_name       = "Biblio Express Final"
 billing_account_id = null
