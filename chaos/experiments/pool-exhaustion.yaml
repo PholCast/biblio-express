@@ -35,8 +35,14 @@ extensions:
     steady_state:
       # Valores medidos en la ronda de calibracion (perfil sin fallo).
       success_rate_min: 0.99
-      p95_latency_ms_max: MEDIR
+      p95_latency_ms_max: 150
       measured_with: k6, fase baseline del perfil-comun-v1
+      calibration:
+        date: 2026-11-16T05:39:33Z
+        requests: 3018
+        success_rate: 1.0
+        p95_latency_ms: 108.4
+        p99_latency_ms: 155.0
     objective_metric:
       name: Presupuesto de error consumido en la ventana de inyeccion
       unit: porcentaje del presupuesto
