@@ -73,9 +73,10 @@ locals {
     **Experimento: agotamiento del pool de conexiones** (chaos/experiments/pool-exhaustion.yaml)
 
     - Fallo: 10/10 conexiones del pool retenidas durante 120 s.
-    - Métrica objetivo: tasa de error en la ventana de inyección (k6), umbral ≤ 5 %.
-    - Ronda 0: sin timeout de adquisición ni caché de respaldo.
-    - Ronda 1: timeout de adquisición (1 s) y respuesta degradada desde caché.
+    - Estado estable: éxito ≥ 99 % y p95 ≤ ${var.p95_threshold_ms} ms (calibración: 100 % y 108 ms).
+    - Métrica objetivo: presupuesto de error consumido en la ventana de inyección (k6, SLO 95 %), umbral ≤ 100 %.
+    - Ronda 0: sin timeout de adquisición ni caché de respaldo. Resultado: 1825,73 %.
+    - Ronda 1: timeout de adquisición (1 s) y respuesta degradada desde caché. Resultado: 0 %.
 
     La barra "Ventana de inyección" marca cuándo estuvo activo el fallo; compárala
     con la latencia p95, la tasa de 5xx y las respuestas degradadas de cada ronda.
