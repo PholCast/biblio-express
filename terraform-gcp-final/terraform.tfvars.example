@@ -37,8 +37,8 @@ stale_cache_ttl_seconds    = 300
 chaos_enabled = false
 chaos_token   = "replace-with-a-long-random-token"
 
-doctors_api_url = ""
-pokemon_api_url = ""
+doctors_api_url = "http://34.121.168.216"
+pokemon_api_url = "http://pokenetes-alb-1190353326.us-east-1.elb.amazonaws.com"
 
 otel_exporter_endpoint      = ""
 otel_exporter_headers       = ""
