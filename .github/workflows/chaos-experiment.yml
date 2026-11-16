@@ -40,6 +40,11 @@ jobs:
       BASE_URL: ${{ inputs.base_url || vars.GCP_FINAL_SERVICE_URL }}
       FLOW_PATH: ${{ inputs.flow_path }}
       CHAOS_TOKEN: ${{ secrets.GCP_FINAL_CHAOS_TOKEN }}
+      TEST_ID: ${{ github.run_id }}
+      K6_PROMETHEUS_RW_SERVER_URL: ${{ secrets.K6_PROMETHEUS_RW_SERVER_URL }}
+      K6_PROMETHEUS_RW_USERNAME: ${{ secrets.K6_PROMETHEUS_RW_USERNAME }}
+      K6_PROMETHEUS_RW_PASSWORD: ${{ secrets.K6_PROMETHEUS_RW_PASSWORD }}
+      K6_PROMETHEUS_RW_TREND_STATS: "p(95),p(99),avg,max"
 
     steps:
       - name: Checkout
@@ -55,6 +60,15 @@ jobs:
 
       - name: Set up k6
         uses: grafana/setup-k6-action@v1
+
+      - name: Send k6 metrics to Grafana Cloud
+        run: |
+          if [ -n "$K6_PROMETHEUS_RW_SERVER_URL" ]; then
+            echo "K6_OUT=experimental-prometheus-rw" >> "$GITHUB_ENV"
+            echo "k6 metrics -> Grafana Cloud (testid $TEST_ID)"
+          else
+            echo "K6_PROMETHEUS_RW_SERVER_URL is not set: k6 metrics stay in the summary only"
+          fi
 
       - name: Validate the declarative experiment
         run: chaos validate chaos/experiments/pool-exhaustion.yaml

@@ -61,7 +61,12 @@ export const options = {
   },
   thresholds,
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
-  tags: { round: ROUND, experiment: EXPERIMENT, profile: profile.name },
+  tags: {
+    round: ROUND,
+    experiment: EXPERIMENT,
+    profile: profile.name,
+    ...(__ENV.TEST_ID ? { testid: __ENV.TEST_ID } : {}),
+  },
 };
 
 const currentPhase = () => {
