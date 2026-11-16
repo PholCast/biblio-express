@@ -16,7 +16,7 @@ variable "notification_email" {
 
 variable "p95_threshold_ms" {
   type    = number
-  default = 500
+  default = 150
 }
 
 variable "max_5xx_rate" {

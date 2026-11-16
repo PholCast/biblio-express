@@ -47,6 +47,6 @@ otel_exporter_otlp_protocol = "http/protobuf"
 github_repository   = "PholCast/biblio-express"
 github_branch       = "main"
 notification_email  = ""
-p95_threshold_ms    = 500
+p95_threshold_ms    = 150
 max_5xx_rate        = 0.01
 deletion_protection = false

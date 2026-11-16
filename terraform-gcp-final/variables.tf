@@ -225,7 +225,7 @@ variable "notification_email" {
 variable "p95_threshold_ms" {
   description = "p95 latency threshold shown on the dashboard and used by the alert."
   type        = number
-  default     = 500
+  default     = 150
 }
 
 variable "max_5xx_rate" {
