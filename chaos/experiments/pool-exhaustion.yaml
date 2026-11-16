@@ -1,8 +1,9 @@
 title: Agotamiento del pool de conexiones a PostgreSQL en biblio-express
 description: >-
   Dado el perfil de carga perfil-comun-v1, cuando se retengan 10 de las 10
-  conexiones del pool de PostgreSQL durante 2 minutos, GET /api/v5/books/:id
-  mantendra la tasa de error en 5 % o menos dentro de la ventana de inyeccion.
+  conexiones del pool de PostgreSQL durante 2 minutos, biblio-express no
+  consumira mas del 100 % de su presupuesto de error (SLO de 95 % de
+  peticiones exitosas) dentro de la ventana de inyeccion.
 tags:
   - agotamiento-de-recursos
   - pool-de-conexiones
@@ -37,12 +38,16 @@ extensions:
       p95_latency_ms_max: MEDIR
       measured_with: k6, fase baseline del perfil-comun-v1
     objective_metric:
-      name: Tasa de error del flujo en la ventana de inyeccion
+      name: Presupuesto de error consumido en la ventana de inyeccion
+      unit: porcentaje del presupuesto
       instrument: k6
       k6_metric: http_req_failed{phase:fault}
       summary_field: phases.fault.errorRate
-      threshold_max: 0.05
+      slo_success_rate: 0.95
+      formula: errorRate / (1 - slo_success_rate) * 100
+      threshold_max: 100
       observation_window_seconds: 120
+      target: GET /api/v5/books/:id de biblio-express
     injection:
       fault: pool-exhaustion
       resource: Pool de conexiones a PostgreSQL (pg.Pool, DB_POOL_MAX=10)

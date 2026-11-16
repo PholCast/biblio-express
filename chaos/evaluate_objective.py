@@ -54,7 +54,13 @@ def main():
 
     summary = json.loads(Path(args.summary).read_text("utf-8"))
 
-    measured = read_field(summary, objective["summary_field"])
+    raw_value = read_field(summary, objective["summary_field"])
+    slo = objective.get("slo_success_rate")
+    measured = raw_value
+
+    if slo is not None and raw_value is not None:
+        measured = round(raw_value / (1 - slo) * 100, 2)
+
     threshold = objective["threshold_max"]
     within_threshold = measured is not None and measured <= threshold
     status, deviated = journal_status(args.journal)
@@ -64,9 +70,12 @@ def main():
         "round": summary.get("round"),
         "profile": summary.get("profile"),
         "metric": objective["name"],
+        "unit": objective.get("unit"),
         "k6_metric": objective["k6_metric"],
         "instrument": objective["instrument"],
         "observation_window_seconds": objective["observation_window_seconds"],
+        "slo_success_rate": slo,
+        "error_rate": raw_value,
         "threshold_max": threshold,
         "measured": measured,
         "within_threshold": within_threshold,
