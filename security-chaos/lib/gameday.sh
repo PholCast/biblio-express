@@ -44,7 +44,7 @@ gd_canary_flow() {
 gd_check_stop() {
   if [ -f "$GD_ROOT/STOP" ] || [ "${GAMEDAY_STOP:-0}" = 1 ]; then
     gd_log aborted stop_switch triggered
-    "${GD_ROLLBACK:-./rollback.sh}"
+    "${GD_ROLLBACK:-./rollback.sh}" stop_switch
     exit 99
   fi
 }
