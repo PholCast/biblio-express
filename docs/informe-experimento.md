@@ -1,11 +1,12 @@
 # Informe de experimentos de Ingeniería del Caos
 
-**Grupo:** Neithan Gómez (AWS), Daniela Higuita (GCP, Kubernetes) y Phol Castañeda (GCP, Cloud Run).
-**Entrega:** 18 de noviembre de 2026. **Versión:** `v5.0.0`.
+**Grupo:** Phol Castañeda (GCP, Cloud Run), Neithan Gómez (AWS) y Daniela Higuita (GCP, Kubernetes).
+**Materia:** ÉNFASIS I: DEFENSA EN PROFUNDIDAD. **Profesor:** José Fabio Jaramillo.
+**Entrega final:** 18 de noviembre de 2026. **Versión:** `v5.0.0`. Versión en PDF: [`informe-experimento.pdf`](informe-experimento.pdf).
 
 ## 1. Flujo y alcance
 
-El flujo es síncrono. La carga entra por `GET /api/v5/flujo` de la API coordinadora de Neithan (AWS: ALB, EC2 y RDS), que lee su último Pokémon y llama en serie a `GET /api/v5/books/last` de biblio-express (Phol, Cloud Run) y a `GET /api/v5/hospitals/last` de Hospitaline (Daniela, GKE Autopilot). `x-trace-id` y `traceparent` viajan en las tres llamadas, y las tres API devuelven el mismo `trace-id`. El diagrama con los puntos de inyección, el radio de impacto y los puntos de medición está en el README.
+El flujo es síncrono. La carga entra por `GET /api/v5/flujo` de la API coordinadora de Neithan (AWS: ALB, EC2 y RDS), que lee su último Pokémon y llama en serie a `GET /api/v5/books/last` de biblio-express (Phol, Cloud Run) y a `GET /api/v5/hospitals/last` de Hospitaline (Daniela, GKE Autopilot). `x-trace-id` y `traceparent` viajan en las tres llamadas, y las tres API devuelven el mismo `trace-id`. El diagrama con los puntos de inyección, el radio de impacto y los puntos de medición está en el [README](https://github.com/PholCast/biblio-express#diagrama-del-flujo-puntos-de-inyección-y-medición).
 
 Cada integrante inyectó un fallo distinto sobre su propia infraestructura, con datos sintéticos, el 16 de noviembre de 2026. Las rondas empezaron a estas horas UTC: Phol a las 05:54 y 06:23, Neithan a las 17:03 y 17:22, y Daniela a las 22:53 y 23:00.
 
