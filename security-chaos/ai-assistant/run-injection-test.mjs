@@ -15,7 +15,7 @@ const env = { ...loadEnv(join(here, '..', 'gameday.env')), ...process.env };
 const mode = args.mode || 'v0';
 const round = String(args.round ?? '0');
 const run = String(args.run ?? '1');
-const evidence = join(here, '..', 'exp3-telemetria-ia', 'evidence', 'exp3', `ronda-${round}`);
+const evidence = join(here, '..', 'evidence', 'exp3', `ronda-${round}`);
 mkdirSync(evidence, { recursive: true });
 
 const payloads = readdirSync(join(here, 'payloads')).filter((f) => f.endsWith('.txt'));
