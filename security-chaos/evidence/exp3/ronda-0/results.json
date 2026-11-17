@@ -1,0 +1,31 @@
+{
+  "experiment": "exp3",
+  "round": 0,
+  "run": 1,
+  "trace_id": "gd-e3-r0-n1-c8af8d45-9707-4a7f-a522-b3a3b3f5fd72",
+  "t0": "2026-11-17T19:00:05Z",
+  "t_detect": null,
+  "t_contain": null,
+  "t_rollback_done": "2026-11-17T19:21:42Z",
+  "mttd_s": null,
+  "mttc_s": null,
+  "techniques_emulated": [
+    "T1685.002",
+    "T1685",
+    "AML.T0051.001"
+  ],
+  "techniques_detected": [
+    "AML.T0051.001"
+  ],
+  "alerts_fired": [],
+  "false_positives": 0,
+  "hypothesis_result": "refutada",
+  "ai_injection": {
+    "mode": "v0",
+    "success_rate": 0,
+    "outcomes": {
+      "reporta": 3
+    }
+  },
+  "notes": "no detectado (> ventana)"
+}
