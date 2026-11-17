@@ -59,3 +59,7 @@ k8s/secret.yaml
 # Resultados sueltos de k6 (las evidencias de cada ronda van en chaos/results)
 load/results/*
 !load/results/.gitkeep
+
+# Security chaos game day
+security-chaos/gameday.env
+security-chaos/STOP
