@@ -25,7 +25,7 @@ resource "google_logging_project_sink" "gd_audit" {
     OR logName:"logs/gd-ai-assistant"
   EOT
 
-  # Same-project routing to a log bucket uses internal delivery, so no writer identity or
-  # bucketWriter grant is needed.
-  unique_writer_identity = false
+  # Same-project routing to a log bucket uses internal delivery: the writer identity stays empty
+  # and no bucketWriter grant is needed. GCP pins this once set, so it matches the created sink.
+  unique_writer_identity = true
 }

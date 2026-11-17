@@ -53,6 +53,12 @@ resource "google_monitoring_dashboard" "security" {
       ]
     }
   })
+
+  # GCP re-serializes the dashboard JSON in a different field order, which Terraform would
+  # otherwise report as a perpetual diff. We own the content, so ignore the server's reordering.
+  lifecycle {
+    ignore_changes = [dashboard_json]
+  }
 }
 
 output "security_dashboard" {
