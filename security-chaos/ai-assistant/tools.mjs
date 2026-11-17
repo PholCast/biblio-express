@@ -13,8 +13,18 @@ export function loadEnv(file) {
 }
 
 export function gcloud(args, extra = []) {
-  const r = spawnSync('gcloud', [...args, ...extra], { encoding: 'utf8', shell: true });
+  // AI_IMPERSONATE makes the assistant act under its own service account (ephemeral token),
+  // which is the "identidad de agentes de IA" trend. Empty = the operator's own identity.
+  const imp = process.env.AI_IMPERSONATE ? [`--impersonate-service-account=${process.env.AI_IMPERSONATE}`] : [];
+  const r = spawnSync('gcloud', [...args, ...extra, ...imp], { encoding: 'utf8', shell: true });
   return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+}
+
+// Emits a gd-ai-assistant log event; the gd3-ai-agent-guard rule alerts on these.
+export function emitEvent(project, event, detail) {
+  const payload = JSON.stringify({ event, ...detail }).replace(/"/g, '\\"');
+  return gcloud(['logging', 'write', 'gd-ai-assistant', `"${payload}"`,
+    `--project=${project}`, '--payload-type=json', '--severity=WARNING']);
 }
 
 export const declarations = [
