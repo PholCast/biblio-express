@@ -19,5 +19,7 @@ module "project" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "serviceusage.googleapis.com",
+    # Security game day: Gemini on Vertex AI for the SOC assistant.
+    "aiplatform.googleapis.com",
   ]
 }
