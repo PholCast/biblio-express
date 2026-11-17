@@ -173,6 +173,14 @@ Los logs llevan `x_trace_id`, `trace_id` y `span_id`. Se envían a Grafana Cloud
 | Daniela | [22:50 a 23:10](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T22:50:00.000Z&to=2026-11-16T23:10:00.000Z&timezone=utc) |
 | Phol | [05:40 a 06:40](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T05:40:00.000Z&to=2026-11-16T06:40:00.000Z&timezone=utc) |
 
+Fila de Neithan con las dos rondas, de 17:00 a 17:30 UTC. La Ronda 0 sube el p95 a unos 2 s entre 17:06 y 17:08; en la Ronda 1 el p95 se queda bajo la línea roja de 800 ms.
+
+![Fila de Neithan en Grafana: latencia p95 del balanceador y de la app, peticiones y errores 5xx, y ventana de inyección del fallo](docs/evidencias/grafana-neithan-rondas.png)
+
+Fila de Daniela con las dos rondas, de 22:50 a 23:10 UTC. En la Ronda 0 la tasa de error del flujo llega al 91 %; en la Ronda 1 se queda en 0 %.
+
+![Fila de Daniela en Grafana: latencia de GET /api/v5/hospitals, tasa de error del flujo y ventana de inyección del fallo](docs/evidencias/grafana-daniela-rondas.png)
+
 Fila de Phol con las dos rondas: las barras rojas marcan la ventana de inyección en cada panel.
 
 ![Fila de Phol en Grafana: ventana de inyección, presupuesto de error, peticiones por clase, latencia p95, conexiones de Cloud SQL y respuestas degradadas](docs/evidencias/grafana-phol-dos-rondas-1.png)

@@ -166,7 +166,7 @@ El presupuesto consumido es **0 %**, así que la hipótesis se cumple. Cada peti
 | Daniela | Cloud Monitoring de su proyecto (PromQL de Managed Prometheus) | [22:50 a 23:10](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T22:50:00.000Z&to=2026-11-16T23:10:00.000Z&timezone=utc) |
 | Phol | Cloud Monitoring | [05:40 a 06:40](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T05:40:00.000Z&to=2026-11-16T06:40:00.000Z&timezone=utc) |
 
-Capturas de la fila de Phol (05:40 a 06:40 UTC): [ventana de inyección, métrica objetivo, mecanismo y patrón](evidencias/grafana-phol-dos-rondas-1.png) y [saturación de la instancia](evidencias/grafana-phol-dos-rondas-2.png).
+Capturas de cada fila con sus dos rondas: [Neithan](evidencias/grafana-neithan-rondas.png), [Daniela](evidencias/grafana-daniela-rondas.png) y Phol ([ventana de inyección, métrica objetivo, mecanismo y patrón](evidencias/grafana-phol-dos-rondas-1.png); [saturación de la instancia](evidencias/grafana-phol-dos-rondas-2.png)).
 
 **Traza de extremo a extremo:** en Tempo, el trace id `34b973d832c61cb6e237f1c8736be547` (`x-trace-id: informe-neithan-1`) reúne los spans de `pokenetes-api`, de biblio-express y de `hospitaline-api`.
 
