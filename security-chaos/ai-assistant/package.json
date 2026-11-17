@@ -1,0 +1,15 @@
+{
+  "name": "biblio-soc-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SOC assistant used in the security chaos game day (Exp. 3): triage of game day events with Gemini on Vertex AI.",
+  "type": "module",
+  "main": "assistant.mjs",
+  "scripts": {
+    "triage": "node assistant.mjs",
+    "injection-test": "node run-injection-test.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "2.32.0"
+  }
+}

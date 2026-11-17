@@ -63,3 +63,6 @@ load/results/*
 # Security chaos game day
 security-chaos/gameday.env
 security-chaos/STOP
+security-chaos/ai-assistant/node_modules/
+security-chaos/ai-assistant/out/
+security-chaos/ai-assistant/pnpm-lock.yaml
