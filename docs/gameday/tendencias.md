@@ -23,8 +23,8 @@ de Vertex AI (`aiplatform.user`), **sin ningún permiso de edición**. Phol la u
 
 **Evidencia.**
 - IaC: `security-chaos/terraform/iam.tf`.
-- Inventario de identidades de máquina: `docs/gameday/inventario-identidades-maquina.md` *(pendiente
-  de generar con `gcloud iam service-accounts list`).*
+- Inventario de identidades de máquina: `docs/gameday/inventario-identidades-maquina.md` (muestra
+  que `soc-assistant` no tiene llaves y es de mínimo privilegio, frente al deployer sobreprivilegiado).
 - En el Exp. 3, las acciones con efecto propuestas a la IA requieren **aprobación humana** y se
   ejecutarían con la identidad del humano, no la del agente (mitigación probada).
 
