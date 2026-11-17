@@ -1,0 +1,68 @@
+{
+  "measured_at": "2026-11-17T17:59:49Z",
+  "layer": "Detección y respuesta (biblio-express, GCP)",
+  "sinks": [
+    {
+      "name": "_Required",
+      "destination": "logging.googleapis.com/projects/biblio-express-final-2026/locations/global/buckets/_Required",
+      "exclusions": [],
+      "disabled": false
+    },
+    {
+      "name": "_Default",
+      "destination": "logging.googleapis.com/projects/biblio-express-final-2026/locations/global/buckets/_Default",
+      "exclusions": [],
+      "disabled": false
+    }
+  ],
+  "log_buckets": [
+    {
+      "name": "_Default",
+      "retention_days": 30,
+      "locked": false
+    },
+    {
+      "name": "_Required",
+      "retention_days": 400,
+      "locked": true
+    }
+  ],
+  "alert_policies": [
+    {
+      "name": "biblio-express-final-chaos-dashboard 5xx above steady state",
+      "id": "projects/biblio-express-final-2026/alertPolicies/16462647778850420950",
+      "enabled": true,
+      "channels": 1
+    },
+    {
+      "name": "biblio-express-final-chaos-dashboard p95 above steady state",
+      "id": "projects/biblio-express-final-2026/alertPolicies/4857992795808309787",
+      "enabled": true,
+      "channels": 1
+    }
+  ],
+  "notification_channels": [
+    {
+      "type": "email",
+      "name": "Biblio chaos email"
+    }
+  ],
+  "uptime_checks": [],
+  "service_log_entries_last_10m": 9,
+  "service_accounts": [
+    "biblio-express-final-deployer@biblio-express-final-2026.iam.gserviceaccount.com",
+    "grafana-cloud-reader@biblio-express-final-2026.iam.gserviceaccount.com",
+    "997240799960-compute@developer.gserviceaccount.com",
+    "biblio-express-final-runtime@biblio-express-final-2026.iam.gserviceaccount.com"
+  ],
+  "user_managed_sa_keys": 1,
+  "health_http": 200,
+  "flow_http": 200,
+  "telemetry_coverage": {
+    "logs_flowing": true,
+    "alerts_with_channel": 2,
+    "heartbeat_alert": false,
+    "tamper_alert": false,
+    "immutable_log_bucket": false
+  }
+}
