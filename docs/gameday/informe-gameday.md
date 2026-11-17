@@ -107,12 +107,34 @@ Condición: credenciales del rol de EC2 usadas desde otro origen y alcance. Mét
 Condición: pod no declarado → Redis + salida a Internet. Métrica cobertura.
 [PENDIENTE: Daniela — cronología R0/R1, cobertura, NetworkPolicies default-deny, `evidence/exp2/`.]
 
-## 8. Experimento 4 — Resiliencia de los datos (grupal) · EN CURSO
-Bucket de comprobantes del flujo; la identidad de la carga sobrescribe y borra; se mide RPO/RTO y se
-restaura. **Copia aislada WORM** creada en el proyecto de Phol
-(`biblio-express-final-2026-gd4-copia-aislada`, retención de 7 días **bloqueada**; probado: el
-borrado falla). R0 corre **sin copia** (línea base). [PENDIENTE: RPO/RTO R0 y R1, restauración
-parcial — Daniela mide, Neithan siembra/cronología.]
+## 8. Experimento 4 — Resiliencia de los datos (grupal) · R0 COMPLETA
+Bucket de comprobantes del flujo (`gd4-flow-receipts`, de Daniela); la identidad de la carga
+sobrescribe y borra; se mide RPO/RTO y se restaura. **Copia aislada WORM** creada en el proyecto de
+Phol (`biblio-express-final-2026-gd4-copia-aislada`, retención de 7 días **bloqueada**; probado: el
+borrado falla hasta el 24 nov). Técnica **T1485** Data Destruction; D3-RF Restore File.
+
+### Ronda 0 (sin copia, línea base) — hipótesis refutada
+- Siembra: Neithan 40 + 10 comprobantes (los 10 definen el RPO). t0 = 21:14:04Z.
+- Ataque: 23 sobrescrituras y 25 borrados **abiertos** (2 sobrescrituras denegadas por azar). Sin
+  retención ni copia, nada lo frena. **Sin alerta** (no existía regla `gd4` en el proyecto).
+- Restauración: por **soft-delete**; 50/50 comprobantes recuperados, 0 perdidos.
+- Resultados (`security-chaos/evidence/exp4/ronda-0/results.json`):
+
+| Métrica | R0 | Umbral | Veredicto |
+|---|---|---|---|
+| RTO total | **34 m 35 s** (2075 s) | ≤ 30 min | **excede** |
+| RTO parcial (10) | 32 m 42 s (1962 s) | — | — |
+| RPO | **20 m 33 s** (1233 s) | ≤ 60 min | cumple |
+| Objetos restaurados | 50/50 | — | sin pérdida |
+| MTTD | no detectado | — | sin detección |
+
+**Conclusión R0:** H4 refutada — se recupera todo, pero el RTO se pasa de los 30 min y no hay
+detección. La R1 (con retención en el bucket de Daniela + la copia WORM + la regla
+`gd4-mass-object-destruction`) debe mejorar RTO y detectar el ataque.
+
+### Ronda 1 · [PENDIENTE]
+Requiere las mejoras de R1: retención en el bucket de Daniela, la copia WORM activa (transferencia
+pendiente del `[AVISO] lectura concedida` de Daniela) y la regla de detección de destrucción masiva.
 
 **Tasa de falsos positivos:** medida con los `negative.sh` (tráfico normal del flujo) de cada regla;
 en Exp. 3 ninguna regla disparó con tráfico normal (0 falsos positivos).
