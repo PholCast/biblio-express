@@ -1,0 +1,12 @@
+[
+  {
+    "publish_time": "2026-11-17T20:52:19.093Z",
+    "policy": "gd3-telemetry-tamper",
+    "state": "open"
+  },
+  {
+    "publish_time": "2026-11-17T20:55:05.551Z",
+    "policy": "gd3-ai-agent-guard",
+    "state": "open"
+  }
+]
