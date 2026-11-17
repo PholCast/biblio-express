@@ -27,16 +27,19 @@ variable "soc_assistant_account_id" {
 }
 
 # Irreversible controls are gated behind these flags so a normal apply never locks anything.
+# Both default to true: they are already applied and part of the game day deliverable, so a plain
+# `terraform apply` reproduces the full stack. They were gated during the first apply so the lock
+# never happened by accident.
 variable "enable_immutable_audit_bucket" {
   description = "Exp. 3 mejora 2: locked 30-day audit log bucket. IRREVERSIBLE once applied."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_worm_backup_copy" {
-  description = "Exp. 4: locked 7-day isolated copy bucket + transfer job. IRREVERSIBLE once applied."
+  description = "Exp. 4: locked 7-day isolated copy bucket (+ transfer job later). IRREVERSIBLE."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "receipts_source_bucket" {
