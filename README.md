@@ -1,3 +1,6 @@
+- [Informe DevOps](docs/informe-experimento.pdf)
+- [Informe Defensa en Profundidad](docs/informe_defensa_en_profundidad.pdf)
+
 # Biblio Express API
 
 API RESTful para la gestión de una biblioteca, desarrollada con **Node.js**, **Express**, **Prisma ORM**, **PostgreSQL** y **Zod**.
