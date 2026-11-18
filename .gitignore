@@ -68,3 +68,4 @@ security-chaos/ai-assistant/out/
 security-chaos/ai-assistant/pnpm-lock.yaml
 security-chaos/terraform/.terraform/
 security-chaos/terraform/*.tfstate*
+security-chaos/terraform/*.tfvars
