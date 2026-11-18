@@ -42,4 +42,4 @@ Las rutas son de este repositorio salvo que se indique otro.
 | 3.b | Conceptos del ejercicio (SCE frente a pentest, estado estable, radio de impacto, MTTD/MTTC, cobertura frente a FP y tasa base, identidad de máquina frente a persona, riesgos de IA agéntica) | Los tres | Notas personales | ⏳ |
 | 3.c | Explicar el mapeo a ATT&CK, D3FEND y ATLAS sin citar IDs inexistentes | Cada uno | `trazabilidad.md` con fecha de consulta | ✅ |
 | 3.d | Demo en vivo: (a) estado estable y tablero, (b) experimento con parada, (c) alerta y cronología, (d) mejora funcionando, (e) reversión | Cada uno | Recorrido por integrante sobre la ventana ya medida | ⏳ |
-| 3.e | Entrega del repositorio, experimentos e informe el 18 de noviembre antes de clase | Los tres | `v5.1.0`, push y release | ⏳ |
+| 3.e | Entrega del repositorio, experimentos e informe el 18 de noviembre antes de clase | Los tres | Push a `main` de los tres repos (hecho). Releases de DevOps publicados: `v5.0.0` (Phol), `5.0.1` (Neithan) y `v5.0.0` (Daniela). El tag `v5.1.0` se descartó: la tarea de defensa no lo pide. Falta que Neithan y Daniela suban los PDFs de los informes a su `docs/` | ⏳ |
