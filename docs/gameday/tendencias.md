@@ -28,14 +28,35 @@ de Vertex AI (`aiplatform.user`), **sin ningún permiso de edición**. Phol la u
 - En el Exp. 3, las acciones con efecto propuestas a la IA requieren **aprobación humana** y se
   ejecutarían con la identidad del humano, no la del agente (mitigación probada).
 
-## Tendencia 2 — Honeytoken en el flujo (Neithan) · [PENDIENTE]
+## Tendencia 2 — Honeytoken en el flujo (Neithan)
 
 **Qué es.** Un secreto señuelo sin valor real cuya única función es alertar cuando alguien lo toca;
-detecta al atacante que ya está dentro, con muy baja tasa de falsos positivos.
+detecta al atacante que ya está dentro, con muy baja tasa de falsos positivos. Es una de las
+tendencias que menciona el enunciado de la evaluación ("un honeytoken en el flujo con la alerta que
+produce al ser tocado").
 
-[PENDIENTE — Neithan: secreto señuelo `pokenetes/backup-admin-credentials`, la alarma
-`gd1-honeytoken-touched` que dispara al leerlo, la fuente del sector con URL y fecha de consulta, y
-la evidencia de la alarma disparando en la R1.]
+**Fuentes** (consultadas el 2026-11-17):
+- MITRE D3FEND, **D3-DUC Decoy User Credential**: https://d3fend.mitre.org/technique/d3f:DecoyUserCredential/
+- Canarytokens, *AWS API Keys Canarytoken* (última actualización 2024-07-23): https://docs.canarytokens.org/guide/aws-keys-token.html
+- Nota de verificación: Neithan citó un issue de GitHub (`jestasecurity/thumper#255`); al abrirlo
+  respondió **404**, así que no se usa como fuente.
+
+**Qué se implementó (no solo mencionada).** Secreto sintético `pokenetes/backup-admin-credentials`,
+con permiso de lectura en el rol de la API para que parezca real, y la alarma
+`gd1-honeytoken-touched` sobre `GetSecretValue` cuyo identificador contiene `backup-admin`
+(`terraform/security-detection.tf` de Pokenetes-API).
+
+**Evidencia.** En la R1 la alarma pasó de OK a ALARM a las 2026-11-18T01:20:03Z (dato 1.0 en el
+minuto 01:19Z); CloudTrail registró el `GetSecretValue` del señuelo a las 01:19:18Z. Archivos:
+`security-chaos/evidence/exp1/ronda-1/` (`results.json`, `events.jsonl`).
+
+**Matiz honesto.** El señuelo lo leyó la **pasada previa**, con la guarda de origen apagada por un
+apply del pipeline, no la pasada medida: en la pasada medida el `inject.sh` no llegó al señuelo
+porque la lectura del secreto padre fue denegada. La detección del señuelo está probada; la
+medición de la R1 se apoya en `gd1-role-secret-outside-vpce`.
+
+**Riesgo residual.** El rol `pokenetes-github-deployer` conserva `AdministratorAccess`, y la llave de
+acceso root de la cuenta no se borró (`AccountAccessKeysPresent = 1`).
 
 ---
 
