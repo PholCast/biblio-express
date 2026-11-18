@@ -1,0 +1,2 @@
+2026-11-18T04:06Z, corrida de 10 min de trafico normal (negative.sh 10). Salida transcrita del terminal porque el log original se sobrescribio:
+PASS: gd3-telemetry-tamper stayed quiet under normal traffic

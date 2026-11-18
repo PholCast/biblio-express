@@ -1,0 +1,3 @@
+2026-11-18T04:37:05Z applying gd3-blind exclusion
+FAIL: gd3-telemetry-heartbeat-absent did not fire within 14m
+2026-11-18T04:51:33Z removing exclusion

@@ -1,0 +1,2 @@
+2026-11-18T04:29:37Z toggling 5xx alert to trigger tamper
+FAIL: gd3-telemetry-tamper did not fire within 6m
