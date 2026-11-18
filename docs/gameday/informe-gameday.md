@@ -44,8 +44,8 @@ Mismo método y mismos scripts en ambas rondas. n.d. = no detectado o no conteni
 
 | Exp. | Ronda | MTTD | MTTC | Cobertura | Falsos positivos | RPO / RTO | Hipótesis |
 |---|---|---|---|---|---|---|---|
-| 1 | R0 | n.d. | n.d. | 0/4 | no medida | — | Refutada |
-| 1 | R1 | 155 s | 17 s | 2/4 | no medida (solo fixtures) | — | Cumplida |
+| 1 | R0 | n.d. | n.d. | 0/4 | 0 (informado) | — | Refutada |
+| 1 | R1 | 155 s | 17 s | 2/4 | 0 (informado: 10 min de tráfico normal, alarmas en OK) | — | Cumplida |
 | 2 | R0 | n.d. | n.d. | 0/3 | — | — | Refutada |
 | 2 | R1 | 22 s | 114 s | 3/3 | 0 (informado) | — | Confirmada |
 | 3 | R0 | n.d. | n.d. | 1/3 | — | — | Refutada |
@@ -63,9 +63,9 @@ experimentos detectaron y contuvieron dentro de sus umbrales; el Exp. 4 además 
 **Falsos positivos y tasa base.** La tasa se calcula como alertas sin condición adversa sobre el
 total de alertas, usando los `negative.sh` (10 min de tráfico normal del flujo). Con tan pocas
 alertas por regla, la tasa tiene poco peso estadístico: un 0 % medido en 10 minutos no demuestra que
-la regla sea precisa con otra carga o en producción (efecto de la tasa base). Neithan no corrió su
-`negative.sh` en vivo (probó los filtros con fixtures), por lo que **no se declara un 0** para el
-Exp. 1.
+la regla sea precisa con otra carga o en producción (efecto de la tasa base). Los tres integrantes midieron
+su tasa con 10 minutos de tráfico normal por regla (Neithan, para el Exp. 1, con una petición cada 2 s
+y las dos alarmas `gd1` siempre en OK).
 
 ## 5. Cronología minuto a minuto (UTC)
 **Exp. 1 — Neithan.** R0: 19:01:39 inicio; 19:01:56 `sts get-caller-identity` permitida con la
@@ -116,12 +116,15 @@ Reglas versionadas en el repositorio de cada integrante, nombradas `gd<exp>-<reg
   `security-chaos/detections/tests/`. Canal medido: Pub/Sub (`gd-alerts`), más correo.
 - **Neithan (CloudWatch, `terraform/security-detection.tf`):** `gd1-role-secret-outside-vpce` y
   `gd1-honeytoken-touched`. Los casos positivo y negativo son fixtures JSON que se evalúan con
-  `aws logs test-metric-filter` (`security-chaos/detections/test-filter.sh`); sus salidas no están
-  versionadas y no se corrió una prueba negativa en vivo.
+  `aws logs test-metric-filter` (`security-chaos/detections/test-filter.sh`), con sus
+  `last-run-positive.log` y `last-run-negative.log` versionados, más 10 minutos de tráfico normal en
+  vivo sin que dispare ninguna alarma.
 - **Daniela (Cloud Monitoring, `terraform/gke/security-detection.tf`):** `gd2-netpol-deny`,
   `gd2-undeclared-workload` y `gd4-mass-object-destruction`. Cada regla **disparó con la condición
-  adversa en la ronda 1** (prueba positiva en vivo), pero su repositorio no incluye scripts de
-  prueba positivo/negativo ni un caso negativo medido.
+  adversa en la ronda 1** y su repositorio incluye, por regla, `positive.sh` y `negative.sh` en
+  `security-chaos/detections/tests/`. La prueba positiva **enlaza el disparo que ya existía** en la R1
+  (`injection=none`: no se volvió a inyectar) y confirma el incidente en Cloud Monitoring; la negativa
+  corrió 10 minutos de tráfico normal con 0 alertas nuevas.
 
 Cada regla debe dispararse con la condición adversa y no con el tráfico normal del flujo. **Resultado de las pruebas de Phol** (`security-chaos/detections/tests/*/last-run.positive.log` y `last-run.negative.log`): los 3 casos negativos pasaron (10 min de tráfico normal, 0 alertas); de los positivos, `gd3-ai-agent-guard` y `gd3-telemetry-tamper` dispararon, y `gd3-telemetry-heartbeat-absent` también disparó, pero a los 14 min 15 s, fuera de la ventana de 14 min del test (ver §4). La prueba de `tamper` falló dos veces antes de pasar porque la regla notifica como máximo una vez cada 5 minutos y los intentos se lanzaron demasiado pronto tras otro cambio de configuración; los intentos fallidos se conservan como `last-run.intento*.log`.
 
@@ -164,8 +167,7 @@ error solo se vio al contrastar con los `results.json`.
 declara `runAsNonRoot`; el rol de despliegue de Neithan conserva `AdministratorAccess` y la llave
 root no se borró; el deployer de biblio y `grafana-cloud-reader` (con una llave estática) están
 sobreprivilegiados; el egreso de biblio hacia los pares sigue abierto por HTTP; la cobertura del
-Exp. 1 es 2/4 (T1552.005 y T1580 sin alarma propia); el latido de telemetría del Exp. 3 es lento (MTTD de 14 min 15 s); Daniela no versionó pruebas positivo/negativo y las de Neithan no tienen salida
-versionada; en el Exp. 3
+Exp. 1 es 2/4 (T1552.005 y T1580 sin alarma propia); el latido de telemetría del Exp. 3 es lento (MTTD de 14 min 15 s); en el Exp. 3
 la llamada al modelo usa las credenciales del operador, no `soc-assistant`; y la retención del bucket
 de comprobantes no está bloqueada.
 
