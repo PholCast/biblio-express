@@ -1,3 +1,4 @@
-2026-11-18T04:37:05Z applying gd3-blind exclusion
+2026-11-18T05:03:17Z applying gd3-blind exclusion
 FAIL: gd3-telemetry-heartbeat-absent did not fire within 14m
-2026-11-18T04:51:33Z removing exclusion
+2026-11-18T05:17:47Z removing exclusion
+NOTA posterior (2026-11-18T05:20Z): el test cerro a los 14 min 14 s y marco FAIL, pero Cloud Monitoring abrio el incidente a las 05:17:31Z y Pub/Sub publico el mensaje a las 05:17:32Z (MTTD 14 min 15 s desde la exclusion de las 05:03:17Z). Evidencia: incidente OPEN de la politica y mensaje en gd-alerts-pull.
