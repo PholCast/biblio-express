@@ -26,6 +26,16 @@ Cada afirmación del triage (`triage-gameday.md`) se contrastó contra la **tele
 | 15 | "Mejorar los modelos de detección de la IA" | **Inventó** | No existen modelos de detección basados en IA: la detección son **reglas** de Cloud Monitoring/CloudWatch. La IA solo correlaciona y resume. | Phol |
 | 16 | No menciona qué **no** se detectó | **Inexacto (omisión)** | En la R1 no se detectaron T1552.005 y T1580 (Exp. 1, cobertura 2/4) y no disparó `gd3-telemetry-heartbeat-absent` (la ventana fue menor que los 5 min de ausencia). Son riesgos residuales que el triage no señala. | Neithan, Phol |
 
+## Revisión por los integrantes (humano en el bucle)
+Cada integrante contrastó los veredictos de sus filas contra sus propios `results.json` y bitácoras.
+**Ninguno pidió correcciones.**
+
+| Integrante | Filas revisadas | Resultado |
+|---|---|---|
+| Neithan (Exp. 1) | 1, 3, 6, 10, 14, 16 | Todas correctas. Confirma la pasada previa a las 01:18:35Z (honeytoken a las 01:20:03Z, guarda apagada), la pasada medida con t0 01:21:54Z y `outside-vpce` a las 01:24:29Z (MTTD 155 s), y que T1552.005 y T1580 no se detectaron (2/4). |
+| Daniela (Exp. 2 y 4) | 1, 3, 5, 7, 8, 10, 13, 14 | Todas correctas. Confirma `pods.create` 01:16:56Z, t0 01:17:08Z y `gd2-netpol-deny` 01:17:30Z; 25 sobrescrituras y 25 borrados reales denegados; 50 hashes sin cambio y copia verificada a las 02:43:41Z y 02:45:11Z; `objects_lost = 0`. |
+| Phol (Exp. 3) | 1, 2, 3, 4, 10, 11, 12, 14, 15, 16 | Contrastadas contra `evidence/exp3/` al evaluar; sin cambios. |
+
 ## Resumen
 - De 16 afirmaciones: **acertó 5** (filas 1, 3, 4, 5, 11; la 3 solo en términos genéricos),
   **inexacto o con omisión 7** (2, 6, 7, 8, 9, 14, 16), **se descartó 3** (10, 12, 13) e **inventó 1** (15).
