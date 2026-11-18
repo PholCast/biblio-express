@@ -21,47 +21,13 @@ controles tal como estaban y ronda 1 tras las mejoras.
 
 ## Diagrama por capas
 
-Puntos de inyección **E1–E4**, fronteras de confianza (cada recuadro es una nube y un propietario)
-y puntos de recolección de telemetría **T1–T5**.
+Puntos de inyección **E1–E4**, fronteras de confianza (cada recuadro rojo discontinuo es una nube y un
+propietario) y puntos de recolección de telemetría **T1–T4**.
 
-```mermaid
-flowchart LR
-  CL([Cliente con x-trace-id]) --> ALB
+![Arquitectura de seguridad del game day: tres nubes, cinco capas, puntos de inyección, fronteras de confianza y telemetría](docs/diagramas/arquitectura-seguridad-gameday.png)
 
-  subgraph AWS["AWS us-east-1 · Neithan · frontera de confianza 1"]
-    direction TB
-    ALB["ALB (HTTP)"] --> API1["API Pokenetes en EC2<br/>rol pokenetes-api-instance<br/>(identidad)"]
-    API1 --> SM[("Secrets Manager<br/>+ señuelo backup-admin<br/>(datos)")]
-    VPCE{{"VPC endpoint<br/>solo origen permitido (red)"}} -.-> SM
-    CT["T1 CloudTrail + CloudWatch<br/>alarmas gd1 (detección)"]
-  end
-
-  subgraph GCPB["GCP biblio-express-final-2026 · Phol · frontera de confianza 2"]
-    direction TB
-    API2["API biblio en Cloud Run<br/>(carga de trabajo)"] --> SQL[("Cloud SQL")]
-    LOG["T2 Cloud Logging _Default"] --> MON["T3 Cloud Monitoring<br/>reglas gd3 + Pub/Sub + correo"]
-    LOG --> AUD[("gd-audit inmutable<br/>30 días bloqueada")]
-    AI["Asistente SOC Gemini<br/>SA soc-assistant"] -.-> LOG
-    COPIA[("Copia aislada WORM<br/>7 días bloqueada")]
-  end
-
-  subgraph GKE["GCP GKE hospitaline-prod · Daniela · frontera de confianza 3"]
-    direction TB
-    API3["API Hospitaline<br/>NetworkPolicy default-deny (red)"] --> RED[("Redis")]
-    API3 --> BUC[("Bucket comprobantes<br/>retención 86400 s (datos)")]
-    NL["T4 policy-action + audit<br/>gd2-netpol-deny, gd4-mass-object-destruction"]
-  end
-
-  ALB -->|"/api/v5/flujo"| API2
-  API2 -->|"/api/v5/hospitals/last"| API3
-  BUC -->|"Storage Transfer"| COPIA
-
-  E1(("E1 credencial del rol<br/>desde otro origen")) -.-> API1
-  E2(("E2 pod no declarado<br/>Redis y salida")) -.-> API3
-  E3(("E3 exclusión de logs +<br/>alerta apagada +<br/>inyección en el título")) -.-> LOG
-  E3 -.-> AI
-  E4(("E4 sobrescritura y borrado<br/>de comprobantes")) -.-> BUC
-```
+Fuente editable: [`docs/diagramas/arquitectura-seguridad-gameday.svg`](docs/diagramas/arquitectura-seguridad-gameday.svg),
+generada con [`security-chaos/tools/make-diagrama-seguridad.mjs`](security-chaos/tools/make-diagrama-seguridad.mjs).
 
 ## Resultados (ronda 0 → ronda 1)
 
