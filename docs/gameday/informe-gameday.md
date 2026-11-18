@@ -1,6 +1,6 @@
 # Informe del Game Day — Ingeniería del Caos de Seguridad
 
-**Curso:** Defensa en Profundidad 2026-2 · **Fecha:** 17 de noviembre de 2026
+**Curso:** Énfasis I: Defensa en Profundidad 2026-2 · **Game day:** 17 de noviembre de 2026 · **Entrega:** 18 de noviembre de 2026
 **Grupo:** Phol (biblio-express, GCP), Neithan (Pokenetes-API, AWS), Daniela (HospitalineD, GCP/GKE)
 **Arquitectura:** flujo multinube `GET /api/v5/flujo` (Pokenetes en AWS → biblio-express en Cloud Run
 → HospitalineD en GKE), correlacionado de extremo a extremo por `x-trace-id`.
@@ -14,25 +14,44 @@ Detalle en `reglas-de-compromiso.md` (escritas y aceptadas antes de ejecutar la 
   franjas iniciales al tener la preparación lista. Las horas reales están en las bitácoras.
 - **Recursos:** solo las cuentas del grupo (GCP `biblio-express-final-2026` y
   `project-39d0c894-3885-4211-89d`, AWS `722500516562`). Prohibido tocar terceros.
+- **Radio de impacto:** Exp. 1, credenciales temporales de un rol y lectura de un secreto, sin modificar recursos; Exp. 2, un pod efímero `gd-intruder` y claves `gd2:*` de Redis; Exp. 3, una exclusión de logs, una alerta y libros sintéticos; Exp. 4, objetos `gd4-*` de un bucket del grupo.
 - **Datos sintéticos:** libros `GD3-SYNTH`, comprobantes `gd4-*`, señuelo sin valor.
 - **Interruptor de parada:** `security-chaos/STOP` o `GAMEDAY_STOP=1`; cada experimento tiene `stop.sh`.
 - **Reversión** probada antes de la primera ejecución y **bitácora** `bitacora.jsonl` correlacionada
   por trace id, con marcadores en la nube. Horas en UTC (Colombia = UTC−5).
 
 ## 2. Inventario de controles y estado estable
-Inventario por capa (identidad, red, carga de trabajo, datos, detección y respuesta) con dueño,
-señal y D3FEND en `inventario-controles.md`. El **estado estable** se midió antes de tocar nada
+Inventario condensado por capa (completo, con D3FEND, en `inventario-controles.md`):
+
+| Capa | Control | Nube · dueño | Señal que debería producir |
+|---|---|---|---|
+| Identidad | Rol `pokenetes-api-instance`: `GetSecretValue` solo desde el VPC endpoint; CI por OIDC sin llaves | AWS · Neithan | `AccessDenied` y alarma `gd1-role-secret-outside-vpce` |
+| Identidad | SA `soc-assistant` de solo lectura, sin llaves, y SA de runtime acotada | GCP · Phol | Uso fuera de lectura |
+| Identidad | Workload Identity KSA→GSA | GKE · Daniela | — |
+| Red | Endpoint de interfaz de Secrets Manager, 443 solo desde el SG de la API | AWS · Neithan | Lecturas de la app por el endpoint |
+| Red | Ingreso público a Cloud Run, sin WAF (residual) | GCP · Phol | Pico de tráfico anómalo |
+| Red | NetworkPolicy `default-deny` y allow-list, `NetworkLogging` | GKE · Daniela | `gd2-netpol-deny` |
+| Carga | Imagen fijada por digest; contenedor como root (residual) | AWS y GCP · Neithan, Phol | `/health` 200 |
+| Carga | Sondas, requests y limits; la API no declara `runAsNonRoot` (residual) | GKE · Daniela | `/health` 200 |
+| Datos | Secreto de la app y señuelo `backup-admin` (sintético) | AWS · Neithan | `gd1-honeytoken-touched` |
+| Datos | Cloud SQL con backups y PITR; copia aislada WORM de 7 días bloqueada | GCP · Phol | Borrado rechazado por retención |
+| Datos | Bucket de comprobantes con retención de 86400 s y auditoría `DATA_WRITE` | GCS · Daniela | `gd4-mass-object-destruction` |
+| Detección | CloudTrail, CloudWatch (30 días) y SNS | AWS · Neithan | Alarmas `gd1` y correo |
+| Detección | Cloud Logging `_Default`, reglas `gd3`, Pub/Sub, correo y bitácora `gd-audit` inmutable | GCP · Phol | Alertas `gd3` |
+| Detección | `policy-action` y auditoría de GKE | GKE · Daniela | Alertas `gd2` y `gd4` |
+
+El **estado estable** se midió antes de tocar nada
 (`evidence/*/estado-estable.json`): cobertura de telemetría por capa, controles activos y línea base
 de MTTD/MTTC, que es el resultado de la ronda 0. En biblio-express: logs de Cloud Run llegando a
 `_Default`, 2 alertas de fiabilidad activas, **ninguna** alerta de seguridad y sin bitácora inmutable.
 
 ## 3. Hipótesis y métricas objetivo (declaradas antes de la ronda 0)
-| Exp. | Responsable | Métrica objetivo | T1 detección | T2 contención |
-|---|---|---|---|---|
-| 1 Identidad de máquina | Neithan | MTTC | ≤ 15 min | ≤ 20 min |
-| 2 Exposición y segmentación | Daniela | Cobertura de detección | ≤ 5 min | ≤ 10 min |
-| 3 Telemetría y capa de IA | Phol | MTTD | ≤ 10 min | ≤ 15 min |
-| 4 Resiliencia de datos (grupal) | Los tres | RTO y RPO | ≤ 10 min | RTO ≤ 30 min, RPO ≤ 60 min |
+| Exp. | Resp. | Control (C) | Condición adversa (A) | Señal esperada (S) | Métrica objetivo | T1 | T2 |
+|---|---|---|---|---|---|---|---|
+| 1 Identidad de máquina | Neithan | Rol `pokenetes-api-instance` | Credencial usada desde otro origen y con otro alcance | Alarma de uso anómalo en CloudWatch | MTTC | ≤ 15 min | ≤ 20 min |
+| 2 Exposición y segmentación | Daniela | Segmentación de `hospitaline-prod` | Pod no declarado hacia Redis y salida a Internet | Alerta de conexión denegada o carga no declarada | Cobertura | ≤ 5 min | ≤ 10 min |
+| 3 Telemetría y capa de IA | Phol | Logging, alertas y asistente SOC | Exclusión de logs, alerta apagada e inyección en un dato | Alerta de manipulación o de ausencia de telemetría | MTTD | ≤ 10 min | ≤ 15 min |
+| 4 Datos (grupal) | Los tres | Bucket de comprobantes | Sobrescritura y borrado con la identidad de la carga | Alerta de destrucción masiva | RTO y RPO | ≤ 10 min | RTO ≤ 30 min, RPO ≤ 60 min |
 
 Cada hipótesis sigue la forma "dado el control C tal como está hoy, cuando ocurra la condición A,
 esperamos la señal S en ≤ T1 min y la contención en ≤ T2 min" (texto completo en `hipotesis.md`).
@@ -58,7 +77,7 @@ observabilidad de fiabilidad (5xx, latencia) pero ninguna de seguridad. Tras las
 experimentos detectaron y contuvieron dentro de sus umbrales; el Exp. 4 además bajó el RTO de 34 m
 35 s (por encima de los 30 min) a 0 en el bucket principal y a 22 m 49 s desde la copia aislada.
 
-**El latido funciona, pero es lento (Exp. 3).** `gd3-telemetry-heartbeat-absent` no disparó en la R1 (la ronda duró 1,5 min); el detector fue `gd3-telemetry-tamper`. Se probó en vivo y el resultado, ya sin interferencias, fue: exclusión aplicada a las 05:03:17Z, la métrica cayó a 0 a las 05:09 y **la alerta se abrió a las 05:17:31Z y llegó a Pub/Sub a las 05:17:32Z: un MTTD de 14 min 15 s**. El test automático cerró su ventana de 14 min 14 s antes y lo registró como fallo; el disparo consta en el incidente de Cloud Monitoring y en Pub/Sub. Dos intentos previos no sirvieron: uno fue demasiado corto y el otro lo interrumpió desde fuera una sesión paralela de Claude, que quitó la exclusión a las 04:38:04Z (verificado en la auditoría de GCP). Conclusión: el latido detecta la ceguera de telemetría, pero **no cumple el T1 de 10 min** de la hipótesis (tarda unos 6 min en cortarse la serie, 5 de ausencia y la evaluación); lo que cumplió fue `tamper` (22 s).
+**El latido funciona, pero es lento (Exp. 3).** `gd3-telemetry-heartbeat-absent` no disparó en la R1 (la ronda duró 1,5 min); el detector fue `gd3-telemetry-tamper`. Se probó en vivo y el resultado, ya sin interferencias, fue: exclusión aplicada a las 05:03:17Z, la métrica cayó a 0 a las 05:09 y **la alerta se abrió a las 05:17:31Z y llegó a Pub/Sub a las 05:17:32Z: un MTTD de 14 min 15 s**. El test automático cerró su ventana de 14 min 14 s antes y lo registró como fallo; el disparo consta en el incidente de Cloud Monitoring y en Pub/Sub. Dos intentos previos no sirvieron: uno fue demasiado corto y el otro lo interrumpió una intervención externa, otra sesión de trabajo con acceso a la misma cuenta, que quitó la exclusión a las 04:38:04Z (verificado en la auditoría de GCP). Conclusión: el latido detecta la ceguera de telemetría, pero **no cumple el T1 de 10 min** de la hipótesis (tarda unos 6 min en cortarse la serie, 5 de ausencia y la evaluación); lo que cumplió fue `tamper` (22 s).
 
 **Falsos positivos y tasa base.** La tasa se calcula como alertas sin condición adversa sobre el
 total de alertas, usando los `negative.sh` (10 min de tráfico normal del flujo). Con tan pocas
@@ -68,6 +87,15 @@ su tasa con 10 minutos de tráfico normal por regla (Neithan, para el Exp. 1, co
 y las dos alarmas `gd1` siempre en OK).
 
 ## 5. Cronología minuto a minuto (UTC)
+Cada corrida usa un **trace id** como identificador de la corrida: el mismo `x-trace-id` viaja por el flujo, la bitácora y los marcadores en la nube, y permite reconstruir qué ocurrió, cuándo y qué control reaccionó. La evidencia (bitácoras, alertas y resultados con sello de tiempo) está en `security-chaos/evidence/expN/ronda-R/`.
+
+| Exp. | Ronda 0 | Ronda 1 |
+|---|---|---|
+| 1 | `gd-e1-r0-n1-66ba7024-da90-49a7-a0b9-c25edef3d39d` | `gd-e1-r1-n1-0d2e0082-2c84-44b8-b197-ae80196c8b1c` |
+| 2 | `gd-e2-r0-n1-9F4B4ED2-2AC8-4443-8A82-F016E39B86E3` | `gd-e2-r1-n1-0E0A4DA7-F08F-460D-953F-3899F5C47C59` |
+| 3 | `gd-e3-r0-n1-c8af8d45-9707-4a7f-a522-b3a3b3f5fd72` | `gd-e3-r1-n1-7894f9b8-2bac-4a3c-ba24-93204eba206c` |
+| 4 | `gd-e4-r0-n1-68E66F60-CD2F-4E3D-B95E-7F92EDA5DD65` | `gd-e4-r1-n1-83D00C83-AFF6-4E85-BCB5-A989F88018F5` |
+
 **Exp. 1 — Neithan.** R0: 19:01:39 inicio; 19:01:56 `sts get-caller-identity` permitida con la
 credencial del rol; 19:02:02 `GetSecretValue` permitida **desde fuera de AWS**; 19:02:09 no había
 señuelo; 19:02:15–27 `iam list-users`, `s3 ls`, `ec2 describe-instances` denegadas; 19:03:11 sin
@@ -152,7 +180,7 @@ denegó) y límites al alcance (cuenta propia `soc-assistant`, máximo de iterac
    las brechas de seguridad empresariales se originará en el abuso de agentes de IA (consulta: 18-nov-2026). Implementación: cuenta `soc-assistant` de mínimo privilegio, sin llaves, usada por
    impersonación; inventario en `inventario-identidades-maquina.md`.
 2. **Honeytoken en el flujo** (Neithan). Fuentes: MITRE D3FEND D3-DUC Decoy User Credential y
-   Canarytokens (AWS API Keys), consultadas el 17-nov-2026. Implementación: secreto señuelo y alarma
+   Canarytokens (AWS API Keys), consultadas el 18-nov-2026. Implementación: secreto señuelo y alarma
    `gd1-honeytoken-touched`, que pasó a ALARM a las 01:20:03Z en la R1.
 
 ## 10. Lecciones aprendidas, riesgos residuales y próximos experimentos
