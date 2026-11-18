@@ -1,43 +1,55 @@
 # Tabla de trazabilidad — control · experimento · marco de referencia
 
-Relaciona cada control bajo prueba con su experimento, la técnica adversaria emulada y las
-contramedidas, mapeadas a los marcos exigidos. **Los IDs se verifican en el sitio oficial antes de
-escribirlos** (citar una técnica inexistente se penaliza). Las filas del Exp. 3 están verificadas;
-Neithan y Daniela completan y verifican las suyas.
+Cada control bajo prueba se relaciona con su experimento, la técnica emulada y su contramedida,
+mapeados a ISO/IEC 27001:2022 Anexo A, NIST SP 800-53 r5 y NIST SP 800-207 (verificación continua,
+mínimo privilegio, microsegmentación), más MITRE ATT&CK, ATLAS y D3FEND.
 
-**Marcos:** MITRE ATT&CK (Enterprise v20) · MITRE ATLAS (v2026.10) · MITRE D3FEND (0.26.1) ·
-ISO/IEC 27001:2022 Anexo A · NIST SP 800-53 r5 · NIST SP 800-207 (Zero Trust: verificación continua,
-mínimo privilegio, microsegmentación).
+**Catálogos consultados el 2026-11-17:** ATT&CK Enterprise **v20.1** (versión vigente en
+attack.mitre.org/resources/versions), ATLAS **v2026.10**, D3FEND **0.26.1**, OWASP Top 10 for
+Agentic Applications 2026 (publicado el 2025-12-09). Los IDs de este documento se abrieron uno por
+uno en el sitio oficial; ATT&CK v20 renombró T1562.008 y T1562.001 como T1685.002 y T1685.
 
-## Experimento 3 — Telemetría y capa de IA (Phol) · verificado 2026-11-17
+## Técnicas ATT&CK / ATLAS verificadas
+| ID | Nombre exacto | Exp. | URL |
+|---|---|---|---|
+| T1552.005 | Unsecured Credentials: Cloud Instance Metadata API | 1 | https://attack.mitre.org/techniques/T1552/005/ |
+| T1078.004 | Valid Accounts: Cloud Accounts | 1 | https://attack.mitre.org/techniques/T1078/004/ |
+| T1555.006 | Credentials from Password Stores: Cloud Secrets Management Stores | 1 | https://attack.mitre.org/techniques/T1555/006/ |
+| T1580 | Cloud Infrastructure Discovery | 1 | https://attack.mitre.org/techniques/T1580/ |
+| T1610 | Deploy Container | 2 | https://attack.mitre.org/techniques/T1610/ |
+| T1046 | Network Service Discovery | 2 | https://attack.mitre.org/techniques/T1046/ |
+| T1071.001 | Application Layer Protocol: Web Protocols | 2 | https://attack.mitre.org/techniques/T1071/001/ |
+| T1685.002 | Disable or Modify Tools: Disable or Modify Cloud Log | 3 | https://attack.mitre.org/techniques/T1685/002/ |
+| T1685 | Disable or Modify Tools | 3 | https://attack.mitre.org/techniques/T1685/ |
+| AML.T0051.001 | LLM Prompt Injection: Indirect (ATLAS) | 3 | https://atlas.mitre.org/techniques/AML.T0051.001 |
+| T1485 | Data Destruction | 4 | https://attack.mitre.org/techniques/T1485/ |
 
-| Elemento | Valor | Fuente / fecha de consulta |
+## Contramedidas D3FEND verificadas
+| ID | Nombre | Exp. |
 |---|---|---|
-| Control | Logging de Cloud Run + alertas de Monitoring + asistente SOC | — |
-| Técnica (telemetría) | **T1685.002** Disable or Modify Tools: Disable or Modify Cloud Log (antes T1562.008) | attack.mitre.org · 2026-11-17 |
-| Técnica (telemetría) | **T1685** Disable or Modify Tools (antes T1562.001) | attack.mitre.org · 2026-11-17 |
-| Técnica (capa de IA) | **AML.T0051.001** LLM Prompt Injection: Indirect | atlas.mitre.org · 2026-11-17 |
-| Contramedida | **D3-PM** Platform Monitoring | d3fend.mitre.org · 2026-11-17 |
-| OWASP Agentic 2026 | ASI01 Agent Goal Hijack, ASI02 Tool Misuse, ASI03 Identity & Privilege Abuse | genai.owasp.org · 2026-11-17 |
-| ISO 27001:2022 A | A.8.15 Registro, A.8.16 Monitoreo, A.8.17 Sincronización de relojes, A.5.25, A.5.28 | — |
-| NIST 800-53 r5 | AU-6, AU-9 (protección de logs), AU-12, SI-4 (monitoreo del sistema) | — |
-| NIST 800-207 | Verificación continua (la telemetría sostiene la confianza evaluada) | — |
-| Reversión | `rollback.sh`: quita la exclusión, rehabilita la alerta, verifica log nuevo | evidence/exp3 |
+| D3-DUC | Decoy User Credential | 1 |
+| D3-AZET | Authorization Event Thresholding | 1 |
+| D3-CRO | Credential Rotation (parcial) | 1 |
+| D3-UGLPA | User Geolocation Logon Pattern Analysis (**no implementada**) | 1 |
+| D3-NI, D3-ITF, D3-OTF, D3-NTA | Network Isolation, Inbound Traffic Filtering, Outbound Traffic Filtering, Network Traffic Analysis | 2 |
+| D3-PM | Platform Monitoring | 3 |
+| D3-RF, D3-FIM | Restore File, File Integrity Monitoring | 4 |
 
-## Experimento 1 — Identidad de máquina (Neithan) · [PENDIENTE]
-| Control | Rol IAM `pokenetes-api-instance` (AWS) | — |
-| Técnica | [Neithan verifica en ATT&CK v20: credencial de máquina desde otro origen / enumeración] | attack.mitre.org |
-| Contramedida | [D3FEND: p. ej. Credential Rotation, Authorization Event Thresholding — verificar] | d3fend.mitre.org |
-| ISO / 800-53 / 800-207 | A.5.15–18, A.8.2/5 · AC-2/3/6, IA-5/9 · Mínimo privilegio | — |
+**Limitación declarada:** la búsqueda inversa de D3FEND para T1610 y T1046 no devuelve D3-NI, D3-ITF
+ni D3-OTF; se citan porque son las contramedidas de red que se implementaron y sus fichas existen.
+Para T1685.002, D3-PM figura en la página de contramedidas, que es un listado amplio.
 
-## Experimento 2 — Exposición y segmentación (Daniela) · [PENDIENTE]
-| Control | Segmentación de red del namespace `hospitaline-prod` (GKE) | — |
-| Técnica | [Daniela verifica en ATT&CK v20: despliegue de carga / descubrimiento de red / salida] | attack.mitre.org |
-| Contramedida | [D3FEND: Network Isolation, Outbound Traffic Filtering — verificar] | d3fend.mitre.org |
-| ISO / 800-53 / 800-207 | A.8.20–23 · AC-4, SC-7, CM-7 · Microsegmentación | — |
+## Control · experimento · marco
 
-## Experimento 4 — Resiliencia de los datos (grupal) · [PENDIENTE]
-| Control | Bucket de comprobantes del flujo + copia aislada WORM | — |
-| Técnica | **T1485** Data Destruction [verificar nombre/ID en v20] | attack.mitre.org |
-| Contramedida | **D3-RF** Restore File, **D3-FIM** File Integrity Monitoring [verificar] | d3fend.mitre.org |
-| ISO / 800-53 / 800-207 | A.8.13, A.5.29/30, A.8.10 · CP-9/10, SI-7, SC-28 · Protección del recurso | — |
+| Exp. | Control | ATT&CK / ATLAS | D3FEND | ISO 27001:2022 A | NIST 800-53 r5 | NIST 800-207 | R0 | R1 |
+|---|---|---|---|---|---|---|---|---|
+| 1 (Neithan) | Rol `pokenetes-api-instance` y `GetSecretValue` solo vía VPC endpoint | T1552.005 (no detectada), T1078.004 (detectada) | D3-AZET | A.5.15, A.5.16, A.8.2 | AC-3, AC-6, IA-9 | Mínimo privilegio; verificación continua | Refutada. Secreto leído, sin alarma | Cumplida. Lectura denegada a los 17 s; alarma a los 155 s |
+| 1 | Lectura de Secrets Manager | T1555.006 (detectada) | D3-AZET | A.5.17, A.8.5 | IA-5, AC-6 | Mínimo privilegio | `GetSecretValue` permitida | Denegada en la pasada medida |
+| 1 | Enumeración iam, s3 y ec2 | T1580 (no detectada) | — | A.8.2 | AC-6 | Mínimo privilegio | Denegada | Denegada |
+| 1 | Señuelo `backup-admin` | Apoya T1555.006 | D3-DUC | A.5.17 | SC-26 | — | No existía | Lo leyó la pasada previa; alarma a las 01:20:03Z |
+| 2 (Daniela) | NetworkPolicy y denegación por defecto en `hospitaline-prod` | T1610, T1046, T1071.001 | D3-NI, D3-ITF, D3-OTF, D3-NTA | A.8.20–A.8.23 | AC-4, SC-7, SC-7(5), CM-7 | Microsegmentación | Refutada. Redis y salida abiertos; cobertura 0/3 | Confirmada. `gd2-netpol-deny` a los 22 s; cobertura 3/3 |
+| 3 (Phol) | Logging, alertas y asistente SOC | T1685.002, T1685, AML.T0051.001 | D3-PM | A.8.15, A.8.16, A.8.17, A.5.25, A.5.28 | AU-6, AU-9, AU-12, SI-4 | Verificación continua | Refutada. Sin señal; cobertura 1/3 | Confirmada. `gd3-telemetry-tamper` a los 22 s; cobertura 3/3 |
+| 4 (grupal) | Retención del bucket, auditoría `DATA_WRITE` y copia aislada WORM | T1485 | D3-RF, D3-FIM | A.8.13, A.5.29, A.5.30, A.8.10 | CP-9, CP-10, SI-7, SC-28 | Protección del recurso; mínimo privilegio | Refutada. RTO 2075 s (> 30 min); sin alerta | Confirmada. Principal RPO/RTO 0; alerta a los 444 s; copia RTO 1369 s |
+
+**OWASP Top 10 for Agentic Applications 2026 (Exp. 3):** ASI01 Agent Goal Hijack, ASI02 Tool
+Misuse, ASI03 Identity & Privilege Abuse.
