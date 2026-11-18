@@ -26,9 +26,6 @@ propietario) y puntos de recolección de telemetría **T1–T4**.
 
 ![Arquitectura de seguridad del game day: tres nubes, cinco capas, puntos de inyección, fronteras de confianza y telemetría](docs/diagramas/arquitectura-seguridad-gameday.png)
 
-Fuente editable: [`docs/diagramas/arquitectura-seguridad-gameday.svg`](docs/diagramas/arquitectura-seguridad-gameday.svg),
-generada con [`security-chaos/tools/make-diagrama-seguridad.mjs`](security-chaos/tools/make-diagrama-seguridad.mjs).
-
 ## Trazabilidad control · experimento · marco
 
 Cada control bajo prueba se relaciona con su experimento, la técnica emulada, su contramedida y los marcos de referencia: ISO/IEC 27001:2022 Anexo A, NIST SP 800-53 r5 y NIST SP 800-207 (verificación continua, mínimo privilegio y microsegmentación). IDs verificados en los sitios oficiales el 2026-11-17 (ATT&CK v20.1, ATLAS v2026.10, D3FEND 0.26.1); la versión completa, con nombres exactos y URLs, está en [`docs/gameday/trazabilidad.md`](docs/gameday/trazabilidad.md).
