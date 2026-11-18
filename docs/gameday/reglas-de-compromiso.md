@@ -6,10 +6,25 @@ integrante lo commitea en el suyo **antes de ejecutar la ronda 0**. La fecha del
 prueba de que el grupo lo aceptó antes de tocar nada.
 
 ## Ventana de ejecución (hora Colombia, UTC−5)
-- Ronda 0: 16:00–17:45 (experimentos 1, 2 y 3 de 16:00 a 17:00; experimento 4 de 17:00 a 17:45).
-- Mejoras y detección: 17:45–21:15.
-- Ronda 1: 21:30–23:15 (experimentos 1, 2 y 3 de 21:30 a 22:30; experimento 4 de 22:30 a 23:15).
-- Fuera de estas franjas no se inyecta ningún fallo.
+**Jornada continua del 17 de noviembre de 2026.** El plan original fijaba franjas (ronda 0 a las
+16:00 y ronda 1 a las 21:30); como los tres integrantes tenían la preparación lista y habían enviado
+`[AVISO] listo R0`, el grupo acordó **empezar antes** y trabajar por orden de pasos, no por reloj.
+Esta sección se actualizó el 17 de noviembre para reflejar la ventana efectiva; el resto del
+documento no cambió. Las horas salen de las bitácoras de cada experimento:
+
+| Ronda | Experimento | Ejecución (hora Colombia) |
+|---|---|---|
+| 0 | 3 (Phol) · 1 (Neithan) · 2 (Daniela) | 14:00–14:21 · 14:01–14:03 · 14:13–14:29 |
+| 0 | 4 (grupal) | 16:14–16:48 |
+| Mejoras | Cada integrante, en su propio repositorio | Entre su ronda 0 y su ronda 1 |
+| 1 | 3 (Phol) | 15:51–15:53 |
+| 1 | 2 (Daniela) · 1 (Neithan) | 20:17–20:19 · 20:21–20:24 |
+| 1 | 4 (grupal) | 21:22–21:55 |
+
+Fuera de estas ejecuciones no se inyectó ningún fallo. Los experimentos 1, 2 y 3 usan recursos
+distintos (AWS, GKE y logging de Cloud Run), por lo que pueden correr en paralelo; el experimento 4
+se ejecutó solo después de que los tres individuales de la ronda correspondiente quedaron
+restaurados.
 
 ## Radio de impacto por experimento
 - **Exp. 1 (Neithan):** credenciales temporales del rol `pokenetes-api-instance` y lectura del
