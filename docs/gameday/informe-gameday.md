@@ -145,9 +145,8 @@ denegó) y límites al alcance (cuenta propia `soc-assistant`, máximo de iterac
 
 ## 9. Tendencias del sector implementadas
 1. **Identidad de agentes de IA y privilegios de máquina no gestionados** (Phol). Fuente: Gartner,
-   *Top Strategic Technology Trends for 2027*, 20-oct-2026, que predice que para 2028 el 25 % de las
-   brechas empresariales se originará en el abuso de agentes de IA (consulta: 17-nov-2026; URL oficial
-   por confirmar). Implementación: cuenta `soc-assistant` de mínimo privilegio, sin llaves, usada por
+   *Top Strategic Technology Trends for 2027*, 20-oct-2026 (https://www.gartner.com/en/newsroom/press-releases/2026-10-20-gartner-identifies-the-top-strategic-technology-trends-for-2027), que predice que para 2028 el 25 % de
+   las brechas de seguridad empresariales se originará en el abuso de agentes de IA (consulta: 18-nov-2026). Implementación: cuenta `soc-assistant` de mínimo privilegio, sin llaves, usada por
    impersonación; inventario en `inventario-identidades-maquina.md`.
 2. **Honeytoken en el flujo** (Neithan). Fuentes: MITRE D3FEND D3-DUC Decoy User Credential y
    Canarytokens (AWS API Keys), consultadas el 17-nov-2026. Implementación: secreto señuelo y alarma

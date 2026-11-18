@@ -10,9 +10,8 @@ gestionan (sin dueño, sin rotación, con permisos de persona). Gartner lo seña
 emergente y predice que **para 2028 el 25 % de las brechas empresariales se originará en el abuso de
 agentes de IA**.
 
-**Fuente.** Gartner, *Top Strategic Technology Trends for 2027*, 20 de octubre de 2026.
-Fecha de consulta: 2026-11-17. *(URL oficial de Gartner por confirmar; la predicción y la fecha son
-las que cita el enunciado de la evaluación.)*
+**Fuente.** Gartner, comunicado *Gartner Identifies the Top Strategic Technology Trends for 2027*, Orlando, 20 de octubre de 2026: https://www.gartner.com/en/newsroom/press-releases/2026-10-20-gartner-identifies-the-top-strategic-technology-trends-for-2027
+Fecha de consulta: 2026-11-18. Verificado en la página: "by 2028, 25% of enterprise security breaches will trace back to AI agent abuse due to unmanaged machine privileges and legacy credential practices" y una tendencia de identidad de agentes de IA.
 
 **Cómo se implementó (no solo mencionada).** El asistente SOC del Exp. 3 **no corre como una
 persona ni con una llave estática**: tiene su propia cuenta de servicio de **mínimo privilegio**

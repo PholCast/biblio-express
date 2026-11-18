@@ -31,7 +31,7 @@ Las rutas son de este repositorio salvo que se indique otro.
 | 2.e | Exp. 4: inmutabilidad (WORM) más una copia aislada | Phol y Daniela | Retención en el bucket principal y copia con retención **bloqueada** | Borrado rechazado en ambos (R1) | ✅ |
 | 2.f | IA aplicada a la defensa, con humano en el bucle y evaluación crítica | Phol y todos | Un triage único y su evaluación contra la telemetría | `docs/gameday/ia/` | ✅ |
 | 2.g | Caos sobre la capa de IA; OWASP y ATLAS; mitigación; repetir la prueba | Phol | Inyección en el título; cuatro mitigaciones; prueba repetida en R1 | `evidence/exp3/ronda-*/ai-injection-results.json` | ✅ |
-| 2.h | Al menos dos tendencias verificables, con fuente y fecha, implementadas | Phol y Neithan | Identidad de agentes de IA y honeytoken | `docs/gameday/tendencias.md` | 🟡 URL oficial de Gartner por confirmar |
+| 2.h | Al menos dos tendencias verificables, con fuente y fecha, implementadas | Phol y Neithan | Identidad de agentes de IA y honeytoken | `docs/gameday/tendencias.md` | ✅ |
 | 2.i | Informe ≤ 10 páginas con todas las secciones; evidencia correlacionada por trace id | Phol y todos | Informe de ~4 páginas (estimado por palabras) | `docs/gameday/informe-gameday.md` | 🟡 Páginas estimadas, no medidas en PDF |
 | 2.j | Entregable independiente del de DevOps | Phol | Informe y carpeta propios | `docs/gameday/` frente a `docs/informe-experimento.md` | ✅ |
 
