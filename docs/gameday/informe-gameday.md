@@ -9,7 +9,7 @@
 > aquí, la **eficacia de los controles de seguridad** (detectar, contener, resistir).
 
 ## 1. Reglas de compromiso
-Detalle en `reglas-de-compromiso.md` (escritas y aceptadas antes de ejecutar la ronda 0).
+Detalle en `reglas-de-compromiso.md`. Escritas y aceptadas antes de ejecutar: el archivo se commiteó en cada repositorio **antes de su ronda 0**, a las 18:23Z (Phol; R0 a las 19:00Z), 18:40Z (Neithan; R0 a las 19:01Z) y 18:55Z (Daniela; R0 a las 19:13Z).
 - **Ventana:** jornada continua del 17 de noviembre (hora Colombia); el grupo acordó adelantar las
   franjas iniciales al tener la preparación lista. Las horas reales están en las bitácoras.
 - **Recursos:** solo las cuentas del grupo (GCP `biblio-express-final-2026` y
@@ -40,10 +40,15 @@ Inventario condensado por capa (completo, con D3FEND, en `inventario-controles.m
 | Detección | Cloud Logging `_Default`, reglas `gd3`, Pub/Sub, correo y bitácora `gd-audit` inmutable | GCP · Phol | Alertas `gd3` |
 | Detección | `policy-action` y auditoría de GKE | GKE · Daniela | Alertas `gd2` y `gd4` |
 
-El **estado estable** se midió antes de tocar nada
-(`evidence/*/estado-estable.json`): cobertura de telemetría por capa, controles activos y línea base
-de MTTD/MTTC, que es el resultado de la ronda 0. En biblio-express: logs de Cloud Run llegando a
-`_Default`, 2 alertas de fiabilidad activas, **ninguna** alerta de seguridad y sin bitácora inmutable.
+El **estado estable de seguridad** se midió en cada nube **antes de tocar nada** (`evidence/*/estado-estable.json`):
+
+| Nube · dueño (medido, UTC) | Telemetría activa | Controles activos | Brecha medida |
+|---|---|---|---|
+| AWS · Neithan (17-nov 17:52) | 3 alarmas de fiabilidad del canary (5xx, p95, hosts sanos), todas en OK y **sin acciones de notificación** | Rol con 2 políticas propias y 2 administradas; IMDSv2 requerido en la instancia; flujo 200 | **0 trails de CloudTrail**, 0 alarmas de seguridad y 1 llave de acceso root presente |
+| GCP biblio-express · Phol (17-nov 17:59) | Logs de Cloud Run llegando a `_Default` (9 entradas en 10 min); 2 alertas de fiabilidad (5xx y p95) con 1 canal | Sin exclusiones en los sinks; `/health` y flujo 200 | **0 alertas de seguridad**, sin latido de telemetría y sin bucket de logs inmutable propio |
+| GKE · Daniela (17-nov 18:14) | 3 políticas de alerta de fiabilidad (5xx y canary); `NetworkLogging` disponible en el clúster | 2 réplicas de la API y Redis en ejecución; `/health` y flujo 200 | **0 NetworkPolicies** (cualquier pod llega a Redis) y 0 alertas de seguridad |
+
+**Línea base de MTTD y MTTC:** ninguna de las tres nubes tenía una sola alerta de seguridad, así que la línea base es el resultado de la ronda 0 de cada experimento: no detectado (n.d.).
 
 ## 3. Hipótesis y métricas objetivo (declaradas antes de la ronda 0)
 | Exp. | Resp. | Control (C) | Condición adversa (A) | Señal esperada (S) | Métrica objetivo | T1 | T2 |
