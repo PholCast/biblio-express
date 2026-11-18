@@ -58,20 +58,7 @@ observabilidad de fiabilidad (5xx, latencia) pero ninguna de seguridad. Tras las
 experimentos detectaron y contuvieron dentro de sus umbrales; el Exp. 4 además bajó el RTO de 34 m
 35 s (por encima de los 30 min) a 0 en el bucket principal y a 22 m 49 s desde la copia aislada.
 
-**El latido no quedó demostrado (Exp. 3).** `gd3-telemetry-heartbeat-absent` no disparó en la R1; el
-detector fue `gd3-telemetry-tamper`. Se probó en vivo dos veces y **no se logró verlo disparar**:
-1. En el primer intento la exclusión funcionó (`_Default` dejó de recibir logs a las 04:22Z y la
-   métrica llegó a 0), pero el test retiró la exclusión a los 9 min, antes de cumplirse los 300 s de
-   ausencia más los ~4 min que tarda la exclusión en surtir efecto.
-2. El segundo intento (14 min) fue **interrumpido desde fuera**: la auditoría de GCP registra un
-   `UpdateSink` a las 04:37:11Z (la exclusión) y otro a las 04:38:04Z que la quitó, ejecutado por una
-   sesión paralela de Claude que supuso que el test se había detenido. Por eso los logs volvieron a
-   `_Default` y la ausencia no se sostuvo. No fue un fallo de la regla.
-
-La regla está desplegada y su lógica es correcta (la métrica sí cae a 0 cuando la exclusión se
-aplica). Hasta que se repita el test sin interrupciones, la prueba positiva se declara **no
-concluyente**; mientras tanto la detección de ceguera de telemetría descansa en
-`gd3-telemetry-tamper`, que ve el cambio de configuración, no en la ausencia de datos.
+**El latido funciona, pero es lento (Exp. 3).** `gd3-telemetry-heartbeat-absent` no disparó en la R1 (la ronda duró 1,5 min); el detector fue `gd3-telemetry-tamper`. Se probó en vivo y el resultado, ya sin interferencias, fue: exclusión aplicada a las 05:03:17Z, la métrica cayó a 0 a las 05:09 y **la alerta se abrió a las 05:17:31Z y llegó a Pub/Sub a las 05:17:32Z: un MTTD de 14 min 15 s**. El test automático cerró su ventana de 14 min 14 s antes y lo registró como fallo; el disparo consta en el incidente de Cloud Monitoring y en Pub/Sub. Dos intentos previos no sirvieron: uno fue demasiado corto y el otro lo interrumpió desde fuera una sesión paralela de Claude, que quitó la exclusión a las 04:38:04Z (verificado en la auditoría de GCP). Conclusión: el latido detecta la ceguera de telemetría, pero **no cumple el T1 de 10 min** de la hipótesis (tarda unos 6 min en cortarse la serie, 5 de ausencia y la evaluación); lo que cumplió fue `tamper` (22 s).
 
 **Falsos positivos y tasa base.** La tasa se calcula como alertas sin condición adversa sobre el
 total de alertas, usando los `negative.sh` (10 min de tráfico normal del flujo). Con tan pocas
@@ -118,7 +105,7 @@ verificada. Los 50 hashes del bucket principal nunca cambiaron.
 | Daniela | Microsegmentación: NetworkPolicy de la API y de Redis | Cualquier pod llegaba a Redis |
 | Daniela | Denegación por defecto y filtrado de salida, `NetworkLogging` y auditoría | Salida a Internet sin filtrar y red sin telemetría |
 | Daniela | Retención de 86400 s en el bucket de comprobantes y auditoría `DATA_WRITE` | Borrado y sobrescritura libres, sin señal |
-| Phol | Alerta por ausencia de señal (latido): métrica de logs con ámbito de bucket y `condition_absent` (prueba positiva no concluyente, ver §4) | Si los logs se cortaban, nadie lo notaba |
+| Phol | Alerta por ausencia de señal (latido): métrica de logs con ámbito de bucket y `condition_absent` (dispara a los 14 min 15 s, ver §4) | Si los logs se cortaban, nadie lo notaba |
 | Phol | Bitácora inmutable `gd-audit` (30 días, retención **bloqueada**) | Un atacante con permisos podía borrar la evidencia |
 | Phol | Copia aislada WORM (7 días, **bloqueada**) y mitigaciones del asistente v1 | Sin copia fuera del alcance de la identidad atacada |
 
@@ -136,7 +123,7 @@ Reglas versionadas en el repositorio de cada integrante, nombradas `gd<exp>-<reg
   adversa en la ronda 1** (prueba positiva en vivo), pero su repositorio no incluye scripts de
   prueba positivo/negativo ni un caso negativo medido.
 
-Cada regla debe dispararse con la condición adversa y no con el tráfico normal del flujo. **Resultado de las pruebas de Phol** (`security-chaos/detections/tests/*/last-run.positive.log` y `last-run.negative.log`): los 3 casos negativos pasaron (10 min de tráfico normal, 0 alertas); de los positivos, `gd3-ai-agent-guard` y `gd3-telemetry-tamper` dispararon, y `gd3-telemetry-heartbeat-absent` quedó no concluyente (ver §4). La prueba de `tamper` falló dos veces antes de pasar porque la regla notifica como máximo una vez cada 5 minutos y los intentos se lanzaron demasiado pronto tras otro cambio de configuración; los intentos fallidos se conservan como `last-run.intento*.log`.
+Cada regla debe dispararse con la condición adversa y no con el tráfico normal del flujo. **Resultado de las pruebas de Phol** (`security-chaos/detections/tests/*/last-run.positive.log` y `last-run.negative.log`): los 3 casos negativos pasaron (10 min de tráfico normal, 0 alertas); de los positivos, `gd3-ai-agent-guard` y `gd3-telemetry-tamper` dispararon, y `gd3-telemetry-heartbeat-absent` también disparó, pero a los 14 min 15 s, fuera de la ventana de 14 min del test (ver §4). La prueba de `tamper` falló dos veces antes de pasar porque la regla notifica como máximo una vez cada 5 minutos y los intentos se lanzaron demasiado pronto tras otro cambio de configuración; los intentos fallidos se conservan como `last-run.intento*.log`.
 
 ## 8. IA aplicada a la defensa y caos sobre la capa de IA
 **IA en la defensa (humano en el bucle).** Un asistente con Gemini en Vertex AI correlacionó los 178
@@ -178,8 +165,7 @@ error solo se vio al contrastar con los `results.json`.
 declara `runAsNonRoot`; el rol de despliegue de Neithan conserva `AdministratorAccess` y la llave
 root no se borró; el deployer de biblio y `grafana-cloud-reader` (con una llave estática) están
 sobreprivilegiados; el egreso de biblio hacia los pares sigue abierto por HTTP; la cobertura del
-Exp. 1 es 2/4 (T1552.005 y T1580 sin alarma propia); el latido de telemetría del Exp. 3 no quedó
-demostrado; Daniela no versionó pruebas positivo/negativo y las de Neithan no tienen salida
+Exp. 1 es 2/4 (T1552.005 y T1580 sin alarma propia); el latido de telemetría del Exp. 3 es lento (MTTD de 14 min 15 s); Daniela no versionó pruebas positivo/negativo y las de Neithan no tienen salida
 versionada; en el Exp. 3
 la llamada al modelo usa las credenciales del operador, no `soc-assistant`; y la retención del bucket
 de comprobantes no está bloqueada.
