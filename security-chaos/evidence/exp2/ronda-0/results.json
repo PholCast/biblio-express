@@ -1,0 +1,22 @@
+{
+  "experiment": "exp2",
+  "round": 0,
+  "run": 1,
+  "trace_id": "gd-e2-r0-n1-9F4B4ED2-2AC8-4443-8A82-F016E39B86E3",
+  "t0": "2026-11-17T19:13:41Z",
+  "t_detect": null,
+  "t_contain": null,
+  "t_rollback_done": "2026-11-17T19:29:47Z",
+  "mttd_s": null,
+  "mttc_s": null,
+  "techniques_emulated": [
+    "T1610",
+    "T1046",
+    "T1071.001"
+  ],
+  "techniques_detected": [],
+  "alerts_fired": [],
+  "false_positives": null,
+  "hypothesis_result": "refutada",
+  "notes": "redis=open egress=open. Ventana 15 min sin logs policy-action ni alerta gd2. Cobertura 0/3. No detectado (> ventana)."
+}

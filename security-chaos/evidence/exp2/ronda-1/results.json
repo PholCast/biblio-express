@@ -1,0 +1,18 @@
+{
+  "experiment": "exp2",
+  "round": 1,
+  "run": 1,
+  "trace_id": "gd-e2-r1-n1-0E0A4DA7-F08F-460D-953F-3899F5C47C59",
+  "t0": "2026-11-18T01:17:08Z",
+  "t_detect": "2026-11-18T01:17:30Z",
+  "t_contain": "2026-11-18T01:19:02Z",
+  "t_rollback_done": "2026-11-18T01:19:02Z",
+  "mttd_s": 22,
+  "mttc_s": 114,
+  "techniques_emulated": ["T1610", "T1046", "T1071.001"],
+  "techniques_detected": ["T1610", "T1046", "T1071.001"],
+  "alerts_fired": ["gd2-netpol-deny"],
+  "false_positives": 0,
+  "hypothesis_result": "confirmada",
+  "notes": "redis=blocked egress=blocked pods=0 flow=200. t_detect es el publishTime de Pub/Sub de gd2-netpol-deny (incidente 0.of5bxewxuddw, ya abierto desde 2026-11-18T00:18:58Z). MTTD 22 s, MTTC 114 s. Los policy-action de gd-intruder son denegaciones DNS (UDP 53): eso impidió resolver redis y el /health de biblio-express. El audit log del pods.create (01:16:56Z, dagudelo0522@gmail.com) coincide con gd2-undeclared-workload; ese incidente siguió abierto desde 00:22:05Z y no llegó un Pub/Sub nuevo de esa política. Cobertura 3/3. Hipótesis H2 confirmada."
+}
