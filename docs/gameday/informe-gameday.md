@@ -63,13 +63,15 @@ detector fue `gd3-telemetry-tamper`. Se probó en vivo dos veces y **no se logr�
 1. En el primer intento la exclusión funcionó (`_Default` dejó de recibir logs a las 04:22Z y la
    métrica llegó a 0), pero el test retiró la exclusión a los 9 min, antes de cumplirse los 300 s de
    ausencia más los ~4 min que tarda la exclusión en surtir efecto.
-2. En el segundo intento (14 min) la exclusión siguió listada, pero `_Default` volvió a recibir 6 logs
-   por minuto desde los ~4 min; la ausencia nunca se sostuvo 5 minutos.
+2. El segundo intento (14 min) fue **interrumpido desde fuera**: la auditoría de GCP registra un
+   `UpdateSink` a las 04:37:11Z (la exclusión) y otro a las 04:38:04Z que la quitó, ejecutado por una
+   sesión paralela de Claude que supuso que el test se había detenido. Por eso los logs volvieron a
+   `_Default` y la ausencia no se sostuvo. No fue un fallo de la regla.
 
-Se desconoce por qué la exclusión dejó de aplicarse en el segundo intento. La regla está desplegada
-y su lógica es correcta (la métrica sí cae a 0 cuando la exclusión se aplica), pero se declara como
-**prueba positiva no concluyente** y como riesgo residual: hoy la detección de ceguera de telemetría
-descansa en `gd3-telemetry-tamper`, que ve el cambio de configuración, no en la ausencia de datos.
+La regla está desplegada y su lógica es correcta (la métrica sí cae a 0 cuando la exclusión se
+aplica). Hasta que se repita el test sin interrupciones, la prueba positiva se declara **no
+concluyente**; mientras tanto la detección de ceguera de telemetría descansa en
+`gd3-telemetry-tamper`, que ve el cambio de configuración, no en la ausencia de datos.
 
 **Falsos positivos y tasa base.** La tasa se calcula como alertas sin condición adversa sobre el
 total de alertas, usando los `negative.sh` (10 min de tráfico normal del flujo). Con tan pocas
