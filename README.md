@@ -4,6 +4,76 @@ API RESTful para la gestión de una biblioteca, desarrollada con **Node.js**, **
 
 La API administra tres entidades: **Users**, **Books** y **Loans**, e implementa el método HTTP **QUERY** para consultas mediante criterios enviados en el cuerpo de la petición.
 
+# Caos de Seguridad: game day de defensa en profundidad
+
+Game day sobre la misma arquitectura multinube del énfasis de DevOps, para comprobar
+**experimentalmente si los controles detectan, contienen y resisten** (aquí la métrica es la eficacia
+de los controles, no la velocidad). Cuatro experimentos, dos rondas cada uno: ronda 0 con los
+controles tal como estaban y ronda 1 tras las mejoras.
+
+- Informe: [`docs/gameday/informe-gameday.md`](docs/gameday/informe-gameday.md)
+- Reglas de compromiso, hipótesis e inventario: [`docs/gameday/`](docs/gameday/)
+- Trazabilidad a ISO 27001:2022, NIST 800-53/800-207, ATT&CK, D3FEND y ATLAS: [`docs/gameday/trazabilidad.md`](docs/gameday/trazabilidad.md)
+- Experimentos como código de este repositorio: [`security-chaos/`](security-chaos/) (cómo reproducirlos en su README)
+- Los otros dos integrantes mantienen sus experimentos en sus repositorios:
+  [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (Neithan, Exp. 1) y
+  [HospitalineD](https://github.com/Dhani-dev/HospitalineD) (Daniela, Exp. 2).
+
+## Diagrama por capas
+
+Puntos de inyección **E1–E4**, fronteras de confianza (cada recuadro es una nube y un propietario)
+y puntos de recolección de telemetría **T1–T5**.
+
+```mermaid
+flowchart LR
+  CL([Cliente con x-trace-id]) --> ALB
+
+  subgraph AWS["AWS us-east-1 · Neithan · frontera de confianza 1"]
+    direction TB
+    ALB["ALB (HTTP)"] --> API1["API Pokenetes en EC2<br/>rol pokenetes-api-instance<br/>(identidad)"]
+    API1 --> SM[("Secrets Manager<br/>+ señuelo backup-admin<br/>(datos)")]
+    VPCE{{"VPC endpoint<br/>solo origen permitido (red)"}} -.-> SM
+    CT["T1 CloudTrail + CloudWatch<br/>alarmas gd1 (detección)"]
+  end
+
+  subgraph GCPB["GCP biblio-express-final-2026 · Phol · frontera de confianza 2"]
+    direction TB
+    API2["API biblio en Cloud Run<br/>(carga de trabajo)"] --> SQL[("Cloud SQL")]
+    LOG["T2 Cloud Logging _Default"] --> MON["T3 Cloud Monitoring<br/>reglas gd3 + Pub/Sub + correo"]
+    LOG --> AUD[("gd-audit inmutable<br/>30 días bloqueada")]
+    AI["Asistente SOC Gemini<br/>SA soc-assistant"] -.-> LOG
+    COPIA[("Copia aislada WORM<br/>7 días bloqueada")]
+  end
+
+  subgraph GKE["GCP GKE hospitaline-prod · Daniela · frontera de confianza 3"]
+    direction TB
+    API3["API Hospitaline<br/>NetworkPolicy default-deny (red)"] --> RED[("Redis")]
+    API3 --> BUC[("Bucket comprobantes<br/>retención 86400 s (datos)")]
+    NL["T4 policy-action + audit<br/>gd2-netpol-deny, gd4-mass-object-destruction"]
+  end
+
+  ALB -->|"/api/v5/flujo"| API2
+  API2 -->|"/api/v5/hospitals/last"| API3
+  BUC -->|"Storage Transfer"| COPIA
+
+  E1(("E1 credencial del rol<br/>desde otro origen")) -.-> API1
+  E2(("E2 pod no declarado<br/>Redis y salida")) -.-> API3
+  E3(("E3 exclusión de logs +<br/>alerta apagada +<br/>inyección en el título")) -.-> LOG
+  E3 -.-> AI
+  E4(("E4 sobrescritura y borrado<br/>de comprobantes")) -.-> BUC
+```
+
+## Resultados (ronda 0 → ronda 1)
+
+| Exp. | Capa | Responsable | Ronda 0 (controles de hoy) | Ronda 1 (tras las mejoras) |
+|---|---|---|---|---|
+| 1 | Identidad de máquina | Neithan | Sin alarma; MTTC no contenido | MTTD 155 s, MTTC 17 s; cobertura 2/4 |
+| 2 | Exposición y segmentación | Daniela | Sin alerta; cobertura 0/3 | MTTD 22 s, MTTC 114 s; cobertura 3/3 |
+| 3 | Telemetría y capa de IA | Phol | Sin señal; cobertura 1/3 | MTTD 22 s, MTTC 79 s; cobertura 3/3 |
+| 4 | Resiliencia de datos (grupal) | Los tres | RTO 34 m 35 s, RPO 20 m 33 s; sin alerta | Principal RPO/RTO 0; alerta a 444 s; copia RTO 22 m 49 s |
+
+---
+
 # Ingeniería del Caos: flujo de tres API y experimentos versionados
 
 Entrega `v5.0.0`. Las tres API del grupo forman un flujo síncrono que propaga un identificador de correlación de extremo a extremo, y cada integrante replica un fallo distinto, lo mide, aplica patrones de resiliencia y lo vuelve a medir con la misma carga.
