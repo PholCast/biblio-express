@@ -8,18 +8,46 @@ import { spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
-const SRC = join(root, 'docs', 'gameday', 'informe-gameday.md');
-const OUT = join(root, 'docs', 'informe_defensa_en_profundidad.pdf');
+// Usage: node make-informe-pdf.mjs [defensa|devops] [--html-only] [--out <path>]
+const REPOS = [
+  ['Phol', 'github.com/PholCast/biblio-express', 'https://github.com/PholCast/biblio-express'],
+  ['Neithan', 'github.com/Enedev/Pokenetes-API', 'https://github.com/Enedev/Pokenetes-API'],
+  ['Daniela', 'github.com/Dhani-dev/HospitalineD', 'https://github.com/Dhani-dev/HospitalineD'],
+];
+const KINDS = {
+  defensa: {
+    src: join(root, 'docs', 'gameday', 'informe-gameday.md'),
+    out: join(root, 'docs', 'informe_defensa_en_profundidad.pdf'),
+    drop: 4, name: 'informe_defensa_en_profundidad',
+    title: 'Informe del game day', subtitle: 'Ingeniería del Caos de Seguridad en un flujo de tres nubes',
+    fecha: '18 de noviembre de 2026 · game day del 17 de noviembre',
+  },
+  devops: {
+    src: join(root, 'docs', 'informe-experimento.md'),
+    out: join(root, 'docs', 'informe-experimento.pdf'),
+    drop: 6, name: 'informe-experimento',
+    title: 'Informe de experimento', subtitle: 'Ingeniería del Caos en un flujo de tres nubes',
+    fecha: '18 de noviembre de 2026 · versión v5.0.0',
+    // The original PDF carried a running header "n / N  Informe de experimento · Ingeniería del Caos".
+    header: 'Informe de experimento · Ingeniería del Caos',
+  },
+};
+const kind = process.argv.includes('devops') ? 'devops' : 'defensa';
+const cfg = KINDS[kind];
+const SRC = cfg.src;
+const OUT = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : cfg.out;
 const FIG = pathToFileURL(join(root, 'docs', 'diagramas', 'arquitectura-seguridad-gameday.png')).href;
 const TMP = process.env.GD_TMP || join(root, 'security-chaos', 'ai-assistant', 'out');
 mkdirSync(TMP, { recursive: true });
-const HTML = join(TMP, 'informe_defensa_en_profundidad.html');
+const HTML = join(TMP, `${cfg.name}.html`);
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function inline(s) {
   const codes = [];
   s = esc(s).replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
-  s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2">$1</a>')
+  // Relative links (repo files) have no target in a PDF: keep only their text.
+  s = s.replace(/\[([^\]]+)\]\((?!https?:)[^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s)<]+)/g, '$1<a href="$2">$2</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
@@ -75,9 +103,10 @@ function convert(md) {
 }
 
 // Drop the H1, the course line and the group line: the cover carries them.
-const md = readFileSync(SRC, 'utf8').split(/\r?\n/).slice(4).join('\n');
+const md = readFileSync(SRC, 'utf8').split(/\r?\n/).slice(cfg.drop).join('\n');
+const pageHeader = cfg.header ? `@top-left { content: counter(page) " / " counter(pages) "  ${cfg.header}"; font: 8pt Calibri, 'Segoe UI', sans-serif; color: #5F6368; vertical-align: bottom; }` : '';
 const css = `
-@page { size: Letter; margin: 0.65in 0.7in; }
+@page { size: Letter; margin: 0.65in 0.7in; ${pageHeader} }
 * { box-sizing: border-box; }
 body { font-family: Calibri, 'Segoe UI', sans-serif; font-size: 10.3pt; line-height: 1.32; color: #202124; margin: 0; }
 .cover { border-bottom: 2.5px solid #1A73E8; padding-bottom: 12px; margin-bottom: 14px; }
@@ -103,13 +132,14 @@ a { color: #1A73E8; text-decoration: none; word-break: break-all; }
 `;
 const cover = `<div class="cover">
 <div class="tag">ENTREGA FINAL</div>
-<h1>Informe del game day</h1>
-<h2>Ingeniería del Caos de Seguridad en un flujo de tres nubes</h2>
+<h1>${cfg.title}</h1>
+<h2>${cfg.subtitle}</h2>
 <div class="names">Phol Castañeda, Neithan Gómez y Daniela Higuita</div>
 <table>
 <tr><td>Materia</td><td>ÉNFASIS I: DEFENSA EN PROFUNDIDAD</td></tr>
 <tr><td>Profesor</td><td>José Fabio Jaramillo</td></tr>
-<tr><td>Fecha</td><td>18 de noviembre de 2026 · game day del 17 de noviembre · github.com/PholCast/biblio-express</td></tr>
+<tr><td>Fecha</td><td>${cfg.fecha}</td></tr>
+<tr><td>Repositorios</td><td>${REPOS.map(([n, label, url]) => `${n}: <a href="${url}">${label}</a>`).join('<br>')}</td></tr>
 </table></div>`;
 writeFileSync(HTML, `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de defensa en profundidad</title><style>${css}</style></head><body>${cover}\n${convert(md)}</body></html>`, 'utf8');
 console.log(`HTML: ${HTML}`);

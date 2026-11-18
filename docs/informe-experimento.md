@@ -3,6 +3,7 @@
 **Grupo:** Phol Castañeda (GCP, Cloud Run), Neithan Gómez (AWS) y Daniela Higuita (GCP, Kubernetes).
 **Materia:** ÉNFASIS I: DEFENSA EN PROFUNDIDAD. **Profesor:** José Fabio Jaramillo.
 **Entrega final:** 18 de noviembre de 2026. **Versión:** `v5.0.0`. Versión en PDF: [`informe-experimento.pdf`](informe-experimento.pdf).
+**Repositorios:** Phol: [github.com/PholCast/biblio-express](https://github.com/PholCast/biblio-express) · Neithan: [github.com/Enedev/Pokenetes-API](https://github.com/Enedev/Pokenetes-API) · Daniela: [github.com/Dhani-dev/HospitalineD](https://github.com/Dhani-dev/HospitalineD).
 
 ## 1. Flujo y alcance
 
