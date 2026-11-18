@@ -69,3 +69,6 @@ security-chaos/ai-assistant/pnpm-lock.yaml
 security-chaos/terraform/.terraform/
 security-chaos/terraform/*.tfstate*
 security-chaos/terraform/*.tfvars
+
+# Keep the detection test evidence (the *.log rule above would hide it)
+!security-chaos/detections/tests/**/last-run*.log

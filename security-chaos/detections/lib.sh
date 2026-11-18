@@ -15,7 +15,8 @@ gd_pull_policies() {
 
 # gd_assert_fires <policy-substring> <minutes>  -> waits for a matching alert
 gd_assert_fires() {
-  local want="$1" mins="${2:-6}" end=$(( $(date +%s) + mins * 60 ))
+  local want="$1" mins="${2:-6}"
+  local end=$(( $(date +%s) + mins * 60 ))
   while [ "$(date +%s)" -lt "$end" ]; do
     if gd_pull_policies | grep -q "$want"; then echo "PASS: $want fired"; return 0; fi
     sleep 20
